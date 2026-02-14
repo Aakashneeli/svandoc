@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-14 (through T-020)
+Last updated: 2026-02-14 (through T-097)
 
 ## How to use this file
 
@@ -97,6 +97,19 @@ Last updated: 2026-02-14 (through T-020)
 | T-082 | P3 | Implement data residency controls (US/EU storage and processing) | T-016, T-057 | Workspace-level region assignment enforced end-to-end | Unassigned |
 | T-083 | P3 | Build self-hosted/on-prem deployment package (Docker/K8s) | T-059 | Reference deployment runs with documented install and upgrade path | Unassigned |
 | T-084 | P3 | Implement usage metering and billing foundation (deferred) | T-061 | Metering events and plan limits available behind feature flag | Unassigned |
+| T-085 | P1 | Define constrained instruction contract for extraction/output prompts (`include`, `exclude`, `rename`, `format`) | T-026, T-031 | Contract spec and validator implemented; invalid/ambiguous directives return structured errors | Unassigned |
+| T-086 | P1 | Add DB models and migration for workspace instruction profiles and template profiles | T-013, T-050 | Tables, relations, indexes, and migration tests added for reusable workspace profiles | Unassigned |
+| T-087 | P1 | Implement template upload endpoint (`POST /api/templates/upload`) for `xlsx`/`csv` | T-086 | Template files stored with metadata/version; file validation and error envelopes covered by tests | Unassigned |
+| T-088 | P1 | Implement template mapping endpoints for canonical field to cell/column binding | T-087, T-031 | CRUD mapping APIs persist strict bindings and validate required target locations | Unassigned |
+| T-089 | P1 | Extend export endpoint to accept `template_id`, `instruction_profile_id`, and inline prompt directives | T-036, T-085, T-088 | Export request supports template and instruction options with deterministic validation and response schema | Unassigned |
+| T-090 | P1 | Implement strict template fill engine for mapped exports | T-089 | Exported file fills mapped cells/columns exactly; unmapped required fields fail with actionable errors | Unassigned |
+| T-091 | P1 | Implement fallback export policy when no template is provided (default svanDoc export path) | T-089, T-035 | No-template exports continue to produce default JSON/CSV/XLSX outputs unchanged | Unassigned |
+| T-092 | P1 | Add frontend template upload/manage section and export instruction UI (prompt + profile picker) | T-043, T-087, T-089 | Users can upload/select template, add constrained prompt directives, and run export from UI | Unassigned |
+| T-093 | P1 | Add end-to-end tests for template and non-template paths with prompt directives | T-092, T-045 | E2E covers template fill success, strict mapping failure, skip/include directives, and no-template fallback | Unassigned |
+| T-094 | P2 | Add hybrid prompt normalizer (semi-free-form text to constrained directives) with safe rejection | T-085, T-093 | Lightweight parser maps supported phrases to directives; unsupported intent rejected explicitly | Unassigned |
+| T-095 | P2 | Add template versioning, workspace default template selection, and change history | T-087, T-056 | Versioned template lifecycle with default selection and auditable change records | Unassigned |
+| T-096 | P2 | Add output preset packs for external tools using CSV/XLSX/JSON shaping profiles | T-089 | Presets generate tool-friendly headers/structures without requiring direct connector auth | Unassigned |
+| T-097 | P2 | Integrate export template mappings with custom extraction templates | T-073, T-095 | Extraction template outputs can be bound to export templates with compatibility checks | Unassigned |
 
 ## Milestone Mapping (MVP + Post-MVP)
 
@@ -111,6 +124,8 @@ Last updated: 2026-02-14 (through T-020)
 | M7 API and Intelligence Expansion | T-071 to T-077 |
 | M8 Enterprise Readiness | T-078 to T-083 |
 | M9 Commercialization (Deferred) | T-084 |
+| M10 Guided Template Export | T-085 to T-093 |
+| M11 Advanced Personalization | T-094 to T-097 |
 
 ## MVP Exit Checklist
 
