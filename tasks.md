@@ -26,7 +26,7 @@ Last updated: 2026-02-14
 | T-011 | P0 | [DONE 2026-02-14] Set up PostgreSQL connection and migration framework | T-010 | Initial migration runs against local Postgres | Codex |
 | T-012 | P0 | [DONE 2026-02-14] Implement core tables: `documents`, `jobs`, `extraction_results` | T-011, T-002 | Tables created with constraints and indexes | Codex |
 | T-013 | P0 | [DONE 2026-02-14] Implement tables: `user_corrections`, `export_artifacts` | T-012 | Tables created and relations validated | Codex |
-| T-014 | P0 | Build document upload endpoint (`POST /api/documents/upload`) | T-010, T-012 | Upload persists metadata and returns IDs | Unassigned |
+| T-014 | P0 | [DONE 2026-02-14] Build document upload endpoint (`POST /api/documents/upload`) | T-010, T-012 | Upload persists metadata and returns IDs | Codex |
 | T-015 | P0 | Implement file validation (type, size, page count) | T-014 | Invalid files rejected with structured errors | Unassigned |
 | T-016 | P0 | Implement storage abstraction interface (`local`, `s3`) | T-014 | Same API works with local backend; S3 stub present | Unassigned |
 | T-017 | P0 | Add checksum generation and duplicate detection | T-014 | Duplicate behavior defined and covered by tests | Unassigned |
