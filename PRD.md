@@ -368,10 +368,55 @@ The local-first stack is intentionally designed to deploy without app rewrites.
 2. Stage 2: move DB/Redis/storage to managed cloud, keep app local for testing.
 3. Stage 3: deploy frontend/API/workers with staged traffic and monitoring.
 
-## 17. Deferred Roadmap (Post-MVP)
+## 17. Post-MVP Roadmap (v1.1 to v2.0)
 
-1. Payments and subscriptions.
-2. Direct accounting integrations (QuickBooks, Xero).
-3. Zapier/Make connectors.
-4. Custom extraction templates for advanced document families.
-5. Public API productization and usage metering.
+This section defines features planned after MVP validation. These are intentionally sequenced so core extraction quality is protected while capability expands.
+
+### 17.1 Connector expansion
+
+1. Spreadsheet and storage connectors
+- Google Sheets direct push.
+- Google Drive, OneDrive, and Dropbox export sync.
+
+2. Automation connectors
+- Outbound webhooks for key events (`job.completed`, `job.failed`, `export.created`).
+- Zapier integration.
+- Make.com integration.
+
+3. Accounting connectors
+- QuickBooks Online.
+- Xero.
+- Sage (phased).
+- Tally-compatible export package (phased).
+
+### 17.2 Platform capabilities
+
+1. Email intake
+- Dedicated inbox per workspace for auto-ingestion and processing rules.
+
+2. Public API productization
+- API keys, scoped permissions, and rate limits.
+- API docs and starter SDKs.
+
+3. Extraction intelligence upgrades
+- Custom extraction templates and template learning from corrections.
+- Advanced table extraction (multi-page stitching, merged cells, nested headers).
+- Handwriting-focused extraction route.
+- Expanded multi-language support with automatic language detection.
+
+### 17.3 Enterprise and compliance features
+
+1. Immutable audit trail and exportable audit reports.
+2. Approval workflow (`Reviewer` -> `Approver`) for controlled outputs.
+3. SSO/SAML and SCIM provisioning.
+4. SOC2 readiness controls and operational evidence pipeline.
+5. Data residency controls (US/EU region options).
+6. Self-hosted/on-prem deployment package.
+
+### 17.4 Commercialization (deferred priority)
+
+1. Usage metering.
+2. Payments and subscriptions.
+3. Plan enforcement and billing operations.
+
+Commercialization remains intentionally lower priority than extraction quality, integrations, and enterprise trust features.

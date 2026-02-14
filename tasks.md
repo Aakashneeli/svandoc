@@ -74,11 +74,31 @@ Last updated: 2026-02-14
 | T-059 | P1 | Create local-to-cloud migration runbook | T-057, T-058 | Runbook validated in staging dry run | Unassigned |
 | T-060 | P1 | Run pilot with 5 to 10 target users and collect workflow metrics | T-045 | Pilot report includes completion and time-to-value metrics | Unassigned |
 | T-061 | P1 | Prioritize beta feedback and create v1.1 hardening backlog | T-060 | Ranked backlog with impact/effort and owners | Unassigned |
-| T-062 | P2 | Evaluate direct accounting integrations (QuickBooks/Xero) | T-061 | Integration feasibility doc with API constraints | Unassigned |
-| T-063 | P2 | Evaluate automation connectors (Zapier/Make) | T-061 | Connector architecture and cost tradeoff documented | Unassigned |
-| T-064 | P2 | Plan payments/subscriptions implementation | T-061 | Billing PRD exists as separate document | Unassigned |
+| T-062 | P2 | Implement Google Sheets direct export connector | T-036 | Users can push extraction results to a selected Sheet via OAuth flow | Unassigned |
+| T-063 | P2 | Implement cloud storage connectors (Google Drive, OneDrive, Dropbox) | T-036 | Export artifacts can be saved to each provider with status tracking | Unassigned |
+| T-064 | P2 | Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`) | T-030, T-036 | Signed webhooks delivered with retries and delivery logs | Unassigned |
+| T-065 | P2 | Build Zapier integration using webhook/API triggers and actions | T-064 | Zapier app supports trigger on completion and action to fetch results | Unassigned |
+| T-066 | P2 | Build Make.com integration templates and connection guide | T-064 | Make templates run end-to-end for upload and export workflows | Unassigned |
+| T-067 | P2 | Implement QuickBooks Online connector for invoice/receipt payload sync | T-061, T-002 | Validated mapping for vendors, amounts, taxes, and references | Unassigned |
+| T-068 | P2 | Implement Xero connector with sync status and retry handling | T-067 | Xero sync works with idempotent retries and reconciliation logs | Unassigned |
+| T-069 | P2 | Implement phased Sage/Tally connector strategy | T-061, T-036 | Sage integration path and Tally import package delivered with docs | Unassigned |
+| T-070 | P2 | Implement email intake with workspace-specific ingestion address | T-014, T-018 | Forwarded emails create document jobs with parsing safeguards | Unassigned |
+| T-071 | P2 | Launch public REST API with API keys and scoped permissions | T-055, T-030, T-031, T-036 | External clients can securely access document/job/extraction/export endpoints | Unassigned |
+| T-072 | P2 | Publish developer docs and starter SDKs (TypeScript and Python) | T-071 | Quickstart apps for both SDKs run against staging API | Unassigned |
+| T-073 | P2 | Implement custom extraction templates (schema builder + field mapping UI) | T-026, T-041 | Users can define and apply templates to recurring document formats | Unassigned |
+| T-074 | P2 | Implement template learning from user corrections (opt-in) | T-073, T-041 | Repeated corrections improve extraction suggestions for matching layouts | Unassigned |
+| T-075 | P2 | Implement advanced table extraction (multi-page stitching, merged cells) | T-024, T-026 | Complex table benchmark accuracy improves and passes regression gates | Unassigned |
+| T-076 | P2 | Add handwriting-focused extraction route and quality benchmark | T-024, T-046 | Handwriting test corpus tracked with explicit acceptance metrics | Unassigned |
+| T-077 | P2 | Expand multilingual support with automatic language detection | T-023, T-024 | Additional language pack support validated on multilingual dataset | Unassigned |
+| T-078 | P2 | Implement immutable audit trail and exportable audit reports | T-056 | Every extraction edit/export event is queryable and exportable | Unassigned |
+| T-079 | P2 | Implement approval workflow (`Reviewer` -> `Approver`) | T-041, T-078 | Documents can require approval before final export | Unassigned |
+| T-080 | P3 | Add enterprise SSO/SAML and SCIM provisioning | T-050 | Enterprise identity flows and provisioning tests pass | Unassigned |
+| T-081 | P3 | Implement SOC2 readiness controls and evidence collection workflows | T-052, T-053, T-078 | Control matrix, evidence jobs, and incident playbook are documented and operational | Unassigned |
+| T-082 | P3 | Implement data residency controls (US/EU storage and processing) | T-016, T-057 | Workspace-level region assignment enforced end-to-end | Unassigned |
+| T-083 | P3 | Build self-hosted/on-prem deployment package (Docker/K8s) | T-059 | Reference deployment runs with documented install and upgrade path | Unassigned |
+| T-084 | P3 | Implement usage metering and billing foundation (deferred) | T-061 | Metering events and plan limits available behind feature flag | Unassigned |
 
-## Milestone Mapping
+## Milestone Mapping (MVP + Post-MVP)
 
 | Milestone | Required Tasks |
 |---|---|
@@ -87,6 +107,10 @@ Last updated: 2026-02-14
 | M3 Review and Export | T-032 to T-045 |
 | M4 Quality Baseline | T-046 to T-049 |
 | M5 Beta Hardening | T-050 to T-061 |
+| M6 Connector Expansion | T-062 to T-070 |
+| M7 API and Intelligence Expansion | T-071 to T-077 |
+| M8 Enterprise Readiness | T-078 to T-083 |
+| M9 Commercialization (Deferred) | T-084 |
 
 ## MVP Exit Checklist
 
