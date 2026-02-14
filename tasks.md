@@ -16,9 +16,9 @@ Last updated: 2026-02-14
 | T-001 | P0 | [DONE 2026-02-14] Freeze MVP scope to invoice/receipt extraction only | - | Scope doc approved and out-of-scope list captured (`docs/mvp-scope.md`); validation check passed | Codex |
 | T-002 | P0 | [DONE 2026-02-14] Define canonical extraction schema (`invoice`, `receipt`) | T-001 | JSON schema files committed with versioning policy (`contracts/schemas/v1/*.schema.json`, `contracts/schemas/README.md`); contract validation passed | Codex |
 | T-003 | P0 | [DONE 2026-02-14] Create repository structure for frontend, backend, worker, shared contracts | T-001 | Folder layout created with README per package (`frontend/README.md`, `backend/README.md`, `worker/README.md`, `contracts/README.md`); structure validation passed | Codex |
-| T-004 | P0 | Add `.env.example` with all required local variables | T-003 | `.env.example` exists and startup works with documented values | Unassigned |
-| T-005 | P0 | Add local setup guide for Node, Python, Postgres, Redis | T-003 | Setup doc tested on a clean machine checklist | Unassigned |
-| T-006 | P0 | Add scripts for local startup (`api`, `worker`, `frontend`) | T-004 | One-command scripts start all services successfully | Unassigned |
+| T-004 | P0 | [DONE 2026-02-14] Add `.env.example` with all required local variables | T-003 | `.env.example` added with PRD-required keys and startup hints; automated key/format validation passed | Codex |
+| T-005 | P0 | [DONE 2026-02-14] Add local setup guide for Node, Python, Postgres, Redis | T-003 | Setup guide added (`docs/local-setup.md`) with clean-machine validation checklist; completeness validation passed | Codex |
+| T-006 | P0 | [DONE 2026-02-14] Add scripts for local startup (`api`, `worker`, `frontend`) | T-004 | Added startup scripts (`scripts/start-api.ps1`, `scripts/start-worker.ps1`, `scripts/start-frontend.ps1`) and orchestrator (`scripts/start-local.ps1`, `scripts/stop-local.ps1`); end-to-end startup/shutdown validation passed | Codex |
 | T-007 | P0 | Configure backend Python tooling (formatter, linter, tests) | T-003 | Lint and test commands run cleanly | Unassigned |
 | T-008 | P0 | Configure frontend tooling (TypeScript checks, lint, tests) | T-003 | Frontend checks run cleanly in CI/local | Unassigned |
 | T-009 | P0 | Define API error format and shared response envelope | T-003 | API responses use one documented structure | Unassigned |
