@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
 
 from svandoc_backend.db import SessionLocal
+from svandoc_backend.job_state_machine import can_transition, transition_job_status
 from svandoc_backend.models.job import Job
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
@@ -57,32 +57,29 @@ celery_app = create_celery_app()
 
 @celery_app.task(name="svandoc.jobs.process_document")
 def process_document_job(job_id: str) -> dict[str, str]:
-    now = datetime.now(timezone.utc)
     session = JOB_SESSION_FACTORY()
     try:
         job = session.get(Job, job_id)
         if job is None:
             return {"job_id": job_id, "status": "missing"}
 
-        job.status = "processing"
-        job.started_at = now
+        transition_job_status(job, "processing")
         session.commit()
 
         # Placeholder processing until OCR pipeline tasks are implemented.
-        job.status = "completed"
-        job.finished_at = datetime.now(timezone.utc)
-        job.error_code = None
-        job.error_message = None
+        transition_job_status(job, "completed")
         session.commit()
         return {"job_id": job_id, "status": "completed"}
     except Exception as exc:  # pragma: no cover - defensive path
         session.rollback()
         failed_job = session.get(Job, job_id)
-        if failed_job is not None:
-            failed_job.status = "failed"
-            failed_job.error_code = "PROCESSING_ERROR"
-            failed_job.error_message = str(exc)
-            failed_job.finished_at = datetime.now(timezone.utc)
+        if failed_job is not None and can_transition(str(failed_job.status), "failed"):
+            transition_job_status(
+                failed_job,
+                "failed",
+                error_code="PROCESSING_ERROR",
+                error_message=str(exc),
+            )
             session.commit()
         raise
     finally:

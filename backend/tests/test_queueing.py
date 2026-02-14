@@ -91,6 +91,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(job)
         assert job is not None
         self.assertEqual(job.status, "completed")
+        self.assertEqual(job.attempt_count, 1)
         self.assertIsNotNone(job.started_at)
         self.assertIsNotNone(job.finished_at)
 
