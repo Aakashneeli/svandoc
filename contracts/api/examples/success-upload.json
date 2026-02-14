@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "request_id": "req_20260214_0001",
+  "timestamp": "2026-02-14T15:35:00Z",
+  "data": {
+    "document_ids": ["doc_001"],
+    "job_ids": ["job_001"]
+  },
+  "error": null,
+  "meta": {
+    "api_version": "v1"
+  }
+}

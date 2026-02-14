@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://svandoc.dev/contracts/api/response-envelope.schema.json",
+  "title": "svanDoc API Response Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "request_id", "timestamp", "data", "error", "meta"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "error"]
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": ["object", "array", "null"]
+    },
+    "error": {
+      "type": ["object", "null"]
+    },
+    "meta": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "success"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "error"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "null"
+          },
+          "error": {
+            "$ref": "error.schema.json"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -19,9 +19,9 @@ Last updated: 2026-02-14
 | T-004 | P0 | [DONE 2026-02-14] Add `.env.example` with all required local variables | T-003 | `.env.example` added with PRD-required keys and startup hints; automated key/format validation passed | Codex |
 | T-005 | P0 | [DONE 2026-02-14] Add local setup guide for Node, Python, Postgres, Redis | T-003 | Setup guide added (`docs/local-setup.md`) with clean-machine validation checklist; completeness validation passed | Codex |
 | T-006 | P0 | [DONE 2026-02-14] Add scripts for local startup (`api`, `worker`, `frontend`) | T-004 | Added startup scripts (`scripts/start-api.ps1`, `scripts/start-worker.ps1`, `scripts/start-frontend.ps1`) and orchestrator (`scripts/start-local.ps1`, `scripts/stop-local.ps1`); end-to-end startup/shutdown validation passed | Codex |
-| T-007 | P0 | Configure backend Python tooling (formatter, linter, tests) | T-003 | Lint and test commands run cleanly | Unassigned |
-| T-008 | P0 | Configure frontend tooling (TypeScript checks, lint, tests) | T-003 | Frontend checks run cleanly in CI/local | Unassigned |
-| T-009 | P0 | Define API error format and shared response envelope | T-003 | API responses use one documented structure | Unassigned |
+| T-007 | P0 | [DONE 2026-02-14] Configure backend Python tooling (formatter, linter, tests) | T-003 | Added backend tooling scripts (`backend/scripts/setup-dev.ps1`, `backend/scripts/format.ps1`, `backend/scripts/lint.ps1`, `backend/scripts/test.ps1`) and stdlib tooling (`backend/tools/*`); setup/lint/test flow passes | Codex |
+| T-008 | P0 | [DONE 2026-02-14] Configure frontend tooling (TypeScript checks, lint, tests) | T-003 | Added frontend tooling config (`frontend/package.json`, `frontend/tsconfig.json`, `frontend/eslint.config.mjs`) and smoke test; `typecheck`, `lint`, and `test` pass locally | Codex |
+| T-009 | P0 | [DONE 2026-02-14] Define API error format and shared response envelope | T-003 | Added shared envelope/error contracts (`contracts/api/*`) with examples and validator script; contract validations pass | Codex |
 | T-010 | P0 | Bootstrap FastAPI app with health and readiness endpoints | T-003 | `/health` and `/ready` return expected payloads | Unassigned |
 | T-011 | P0 | Set up PostgreSQL connection and migration framework | T-010 | Initial migration runs against local Postgres | Unassigned |
 | T-012 | P0 | Implement core tables: `documents`, `jobs`, `extraction_results` | T-011, T-002 | Tables created with constraints and indexes | Unassigned |

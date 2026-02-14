@@ -15,6 +15,22 @@ This package will host the Next.js web application.
 - TypeScript
 - Tailwind CSS
 
+## Developer tooling
+
+Install dependencies:
+
+```powershell
+npm.cmd --prefix frontend install
+```
+
+Run checks:
+
+```powershell
+npm.cmd --prefix frontend run typecheck
+npm.cmd --prefix frontend run lint
+npm.cmd --prefix frontend run test
+```
+
 ## Placeholder
 
 Implementation will start in `T-037` and related tasks.

@@ -1,0 +1,22 @@
+{
+  "status": "error",
+  "request_id": "req_20260214_0002",
+  "timestamp": "2026-02-14T15:36:00Z",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "One or more fields are invalid.",
+    "details": {
+      "fields": [
+        {
+          "name": "file",
+          "issue": "Unsupported MIME type."
+        }
+      ]
+    },
+    "retryable": false
+  },
+  "meta": {
+    "api_version": "v1"
+  }
+}

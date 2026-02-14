@@ -16,6 +16,24 @@ This package will host the FastAPI application.
 - PostgreSQL
 - Redis (queue integration)
 
+## Developer tooling
+
+Commands:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/setup-dev.ps1
+powershell -ExecutionPolicy Bypass -File backend/scripts/lint.ps1
+powershell -ExecutionPolicy Bypass -File backend/scripts/test.ps1
+```
+
+Optional formatter:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend/scripts/format.ps1
+```
+
+Tooling currently uses Python stdlib scripts in `backend/tools/` so no third-party install is required yet.
+
 ## Placeholder
 
-Implementation starts in `T-010` and related tasks.
+Service implementation starts in `T-010` and related tasks.

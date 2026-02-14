@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://svandoc.dev/contracts/api/error.schema.json",
+  "title": "svanDoc API Error Object",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message", "retryable"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "minLength": 1
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "details": {
+      "type": ["object", "array", "null"]
+    },
+    "retryable": {
+      "type": "boolean"
+    }
+  }
+}

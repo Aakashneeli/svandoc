@@ -6,6 +6,7 @@ This package contains shared contracts consumed by backend, worker, and frontend
 
 1. Canonical extraction JSON schemas under `contracts/schemas`.
 2. Schema versioning policy under `contracts/schemas/README.md`.
+3. API response envelope and error contracts under `contracts/api`.
 
 ## Planned additions
 
