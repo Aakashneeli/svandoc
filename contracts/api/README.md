@@ -60,3 +60,10 @@ Optional:
 5. `409`: conflict/idempotency errors
 6. `429`: rate limit errors
 7. `500/502/503`: server/dependency failures
+
+## Upload duplicate behavior
+
+`POST /api/documents/upload` returns `409` with `code=DUPLICATE_DOCUMENT` when:
+
+1. The same file content appears more than once in a single request.
+2. The uploaded file checksum already exists in `documents`.

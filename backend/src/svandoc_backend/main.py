@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
@@ -101,6 +102,7 @@ async def upload_documents(
                 "filename": filename,
                 "mime_type": mime_type,
                 "content": content,
+                "checksum": compute_checksum(content),
                 "page_count": page_count,
             }
         )
@@ -117,11 +119,64 @@ async def upload_documents(
             ),
         )
 
+    duplicate_details: list[dict[str, object]] = []
+    uploads_by_checksum: dict[str, list[dict[str, object]]] = {}
+    for upload_data in prepared_uploads:
+        checksum = str(upload_data["checksum"])
+        uploads_by_checksum.setdefault(checksum, []).append(upload_data)
+
+    for checksum, uploads_for_checksum in uploads_by_checksum.items():
+        if len(uploads_for_checksum) > 1:
+            for upload_data in uploads_for_checksum:
+                duplicate_details.append(
+                    {
+                        "filename": str(upload_data["filename"]),
+                        "checksum": checksum,
+                        "reason": "duplicate_in_request",
+                    }
+                )
+
+    checksums = list(uploads_by_checksum.keys())
+    if checksums:
+        existing_documents = (
+            db.query(Document.id, Document.checksum)
+            .filter(Document.checksum.in_(checksums))
+            .all()
+        )
+    else:
+        existing_documents = []
+
+    existing_by_checksum = {str(checksum): str(document_id) for document_id, checksum in existing_documents}
+    for upload_data in prepared_uploads:
+        checksum = str(upload_data["checksum"])
+        existing_document_id = existing_by_checksum.get(checksum)
+        if existing_document_id:
+            duplicate_details.append(
+                {
+                    "filename": str(upload_data["filename"]),
+                    "checksum": checksum,
+                    "reason": "already_exists",
+                    "document_id": existing_document_id,
+                }
+            )
+
+    if duplicate_details:
+        return JSONResponse(
+            status_code=409,
+            content=error_envelope(
+                request,
+                code="DUPLICATE_DOCUMENT",
+                message="One or more files already exist.",
+                details={"duplicates": duplicate_details},
+                retryable=False,
+            ),
+        )
+
     for upload_data in prepared_uploads:
         document_id = str(uuid4())
         job_id = str(uuid4())
         content = upload_data["content"]
-        checksum = compute_checksum(content)
+        checksum = str(upload_data["checksum"])
         storage_uri = storage_backend.store_document(document_id, str(upload_data["filename"]), content)
 
         document = Document(
@@ -145,7 +200,20 @@ async def upload_documents(
         document_ids.append(document_id)
         job_ids.append(job_id)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return JSONResponse(
+            status_code=409,
+            content=error_envelope(
+                request,
+                code="DUPLICATE_DOCUMENT",
+                message="One or more files already exist.",
+                details=None,
+                retryable=False,
+            ),
+        )
 
     return success_envelope(
         request,

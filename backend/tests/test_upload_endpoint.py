@@ -146,6 +146,59 @@ class UploadEndpointTests(unittest.TestCase):
         self.assertEqual(document_count, 2)
         self.assertEqual(job_count, 2)
 
+    def test_upload_rejects_duplicate_against_existing_document(self) -> None:
+        file_content = b"%PDF-1.7 same payload"
+        first = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("first.pdf", file_content, "application/pdf"))],
+        )
+        self.assertEqual(first.status_code, 200)
+        first_document_id = first.json()["data"]["document_ids"][0]
+
+        second = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("second.pdf", file_content, "application/pdf"))],
+        )
+        self.assertEqual(second.status_code, 409)
+        payload = second.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "DUPLICATE_DOCUMENT")
+        duplicates = payload["error"]["details"]["duplicates"]
+        self.assertEqual(len(duplicates), 1)
+        self.assertEqual(duplicates[0]["reason"], "already_exists")
+        self.assertEqual(duplicates[0]["document_id"], first_document_id)
+
+        session = self.SessionTesting()
+        try:
+            self.assertEqual(session.query(Document).count(), 1)
+            self.assertEqual(session.query(Job).count(), 1)
+        finally:
+            session.close()
+
+    def test_upload_rejects_duplicates_inside_same_request(self) -> None:
+        duplicate_bytes = b"%PDF-1.7 duplicate in batch"
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[
+                ("files", ("one.pdf", duplicate_bytes, "application/pdf")),
+                ("files", ("two.pdf", duplicate_bytes, "application/pdf")),
+            ],
+        )
+        self.assertEqual(response.status_code, 409)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "DUPLICATE_DOCUMENT")
+        duplicates = payload["error"]["details"]["duplicates"]
+        self.assertEqual(len(duplicates), 2)
+        reasons = {item["reason"] for item in duplicates}
+        self.assertEqual(reasons, {"duplicate_in_request"})
+
+        session = self.SessionTesting()
+        try:
+            self.assertEqual(session.query(Document).count(), 0)
+            self.assertEqual(session.query(Job).count(), 0)
+        finally:
+            session.close()
+
     def test_upload_rejects_unsupported_file_types_with_structured_error(self) -> None:
         response = self.client.post(
             "/api/documents/upload",

@@ -29,7 +29,7 @@ Last updated: 2026-02-14
 | T-014 | P0 | [DONE 2026-02-14] Build document upload endpoint (`POST /api/documents/upload`) | T-010, T-012 | Upload persists metadata and returns IDs | Codex |
 | T-015 | P0 | [DONE 2026-02-14] Implement file validation (type, size, page count) | T-014 | Invalid files rejected with structured errors | Codex |
 | T-016 | P0 | [DONE 2026-02-14] Implement storage abstraction interface (`local`, `s3`) | T-014 | Same API works with local backend; S3 stub present | Codex |
-| T-017 | P0 | Add checksum generation and duplicate detection | T-014 | Duplicate behavior defined and covered by tests | Unassigned |
+| T-017 | P0 | [DONE 2026-02-14] Add checksum generation and duplicate detection | T-014 | Duplicate behavior defined and covered by tests | Codex |
 | T-018 | P0 | Integrate Redis and Celery queue | T-010 | Jobs can be enqueued and consumed locally | Unassigned |
 | T-019 | P0 | Create job lifecycle state machine and transitions | T-018, T-012 | Valid transitions enforced in code and DB | Unassigned |
 | T-020 | P0 | Implement worker skeleton with structured logging context | T-018 | Worker logs include `request_id`, `job_id`, `document_id` | Unassigned |
