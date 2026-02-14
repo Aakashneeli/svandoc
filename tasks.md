@@ -32,7 +32,7 @@ Last updated: 2026-02-14
 | T-017 | P0 | [DONE 2026-02-14] Add checksum generation and duplicate detection | T-014 | Duplicate behavior defined and covered by tests | Codex |
 | T-018 | P0 | [DONE 2026-02-14] Integrate Redis and Celery queue | T-010 | Jobs can be enqueued and consumed locally | Codex |
 | T-019 | P0 | [DONE 2026-02-14] Create job lifecycle state machine and transitions | T-018, T-012 | Valid transitions enforced in code and DB | Codex |
-| T-020 | P0 | Implement worker skeleton with structured logging context | T-018 | Worker logs include `request_id`, `job_id`, `document_id` | Unassigned |
+| T-020 | P0 | [DONE 2026-02-14] Implement worker skeleton with structured logging context | T-018 | Worker logs include `request_id`, `job_id`, `document_id` | Codex |
 | T-021 | P0 | Implement image preprocessing (deskew, denoise, orientation) | T-020 | Preprocessing runs on sample corpus with expected output | Unassigned |
 | T-022 | P0 | Build vLLM client module with timeout/retry policies | T-020 | Client handles transient failures and metrics hooks | Unassigned |
 | T-023 | P0 | Integrate `dots.ocr` extraction adapter | T-022 | End-to-end extraction works for baseline samples | Unassigned |

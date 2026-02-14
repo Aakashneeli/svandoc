@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
 from svandoc_backend.db import get_db_session
-from svandoc_backend.envelope import error_envelope, success_envelope
+from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.job import Job
 from svandoc_backend.queueing import enqueue_processing_job
@@ -62,6 +62,7 @@ async def upload_documents(
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
     del doc_type_hint
+    worker_request_id = request_id_from_request(request)
 
     try:
         storage_backend = get_storage_backend()
@@ -217,7 +218,7 @@ async def upload_documents(
         )
 
     for job_id in job_ids:
-        enqueue_processing_job(job_id)
+        enqueue_processing_job(job_id, request_id=worker_request_id)
 
     return success_envelope(
         request,

@@ -3,6 +3,7 @@ import os
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -237,6 +238,20 @@ class UploadEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         details = response.json()["error"]["details"]["files"][0]
         self.assertIn("File size exceeds limit of 1 MB.", details["issues"])
+
+    def test_upload_passes_request_id_to_queue_enqueue(self) -> None:
+        with patch("svandoc_backend.main.enqueue_processing_job", return_value="task-1") as enqueue_mock:
+            response = self.client.post(
+                "/api/documents/upload",
+                headers={"x-request-id": "req-upload-1"},
+                files=[("files", ("invoice.pdf", b"%PDF-1.7 req id", "application/pdf"))],
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(enqueue_mock.call_count, 1)
+        args, kwargs = enqueue_mock.call_args
+        self.assertTrue(args[0])
+        self.assertEqual(kwargs["request_id"], "req-upload-1")
 
     def test_upload_rejects_pdf_page_count_above_limit(self) -> None:
         os.environ["MAX_UPLOAD_PAGES"] = "1"

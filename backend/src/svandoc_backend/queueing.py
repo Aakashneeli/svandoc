@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from svandoc_backend.db import SessionLocal
 from svandoc_backend.job_state_machine import can_transition, transition_job_status
 from svandoc_backend.models.job import Job
+from svandoc_backend.worker_logging import emit_worker_log
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
@@ -56,19 +57,41 @@ celery_app = create_celery_app()
 
 
 @celery_app.task(name="svandoc.jobs.process_document")
-def process_document_job(job_id: str) -> dict[str, str]:
+def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, str]:
+    safe_request_id = request_id or "unknown"
     session = JOB_SESSION_FACTORY()
     try:
         job = session.get(Job, job_id)
         if job is None:
+            emit_worker_log(
+                event="job_missing",
+                request_id=safe_request_id,
+                job_id=job_id,
+                document_id="unknown",
+                status="missing",
+            )
             return {"job_id": job_id, "status": "missing"}
 
+        emit_worker_log(
+            event="job_processing_started",
+            request_id=safe_request_id,
+            job_id=job.id,
+            document_id=job.document_id,
+            status="processing",
+        )
         transition_job_status(job, "processing")
         session.commit()
 
         # Placeholder processing until OCR pipeline tasks are implemented.
         transition_job_status(job, "completed")
         session.commit()
+        emit_worker_log(
+            event="job_processing_completed",
+            request_id=safe_request_id,
+            job_id=job.id,
+            document_id=job.document_id,
+            status="completed",
+        )
         return {"job_id": job_id, "status": "completed"}
     except Exception as exc:  # pragma: no cover - defensive path
         session.rollback()
@@ -81,14 +104,22 @@ def process_document_job(job_id: str) -> dict[str, str]:
                 error_message=str(exc),
             )
             session.commit()
+            emit_worker_log(
+                event="job_processing_failed",
+                request_id=safe_request_id,
+                job_id=failed_job.id,
+                document_id=failed_job.document_id,
+                status="failed",
+                details={"error_code": "PROCESSING_ERROR", "error_message": str(exc)},
+            )
         raise
     finally:
         session.close()
 
 
-def enqueue_processing_job(job_id: str) -> str | None:
+def enqueue_processing_job(job_id: str, request_id: str | None = None) -> str | None:
     if queue_backend_mode() == "disabled":
         return None
 
-    async_result = process_document_job.delay(job_id)
+    async_result = process_document_job.delay(job_id, request_id or "unknown")
     return async_result.id

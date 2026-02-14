@@ -2,6 +2,7 @@ import os
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -78,7 +79,8 @@ class QueueingIntegrationTests(unittest.TestCase):
         job_id = "job-eager-1"
         self._insert_document_and_job(job_id)
 
-        task_id = enqueue_processing_job(job_id)
+        with patch("svandoc_backend.queueing.emit_worker_log") as log_mock:
+            task_id = enqueue_processing_job(job_id, request_id="req-queue-test")
 
         self.assertIsInstance(task_id, str)
         self.assertTrue(task_id)
@@ -94,10 +96,31 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(job.attempt_count, 1)
         self.assertIsNotNone(job.started_at)
         self.assertIsNotNone(job.finished_at)
+        self.assertGreaterEqual(log_mock.call_count, 2)
+        for call in log_mock.call_args_list:
+            kwargs = call.kwargs
+            self.assertIn("request_id", kwargs)
+            self.assertIn("job_id", kwargs)
+            self.assertIn("document_id", kwargs)
+        self.assertTrue(
+            any(
+                call.kwargs["request_id"] == "req-queue-test"
+                and call.kwargs["job_id"] == job_id
+                and call.kwargs["document_id"] == "doc-1"
+                and call.kwargs["status"] in {"processing", "completed"}
+                for call in log_mock.call_args_list
+            )
+        )
 
     def test_process_document_job_returns_missing_for_unknown_job(self) -> None:
-        result = process_document_job("missing-job-id")
+        with patch("svandoc_backend.queueing.emit_worker_log") as log_mock:
+            result = process_document_job("missing-job-id", request_id="req-missing")
         self.assertEqual(result["status"], "missing")
+        log_mock.assert_called_once()
+        kwargs = log_mock.call_args.kwargs
+        self.assertEqual(kwargs["request_id"], "req-missing")
+        self.assertEqual(kwargs["job_id"], "missing-job-id")
+        self.assertEqual(kwargs["document_id"], "unknown")
 
 
 if __name__ == "__main__":

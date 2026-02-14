@@ -19,5 +19,6 @@ This package will host asynchronous document processing workers.
 ## Current status
 
 1. Celery worker bootstrap is integrated in `T-018`.
-2. Queue tasks are currently placeholder processing stubs until `T-020+`.
-3. Local worker start script supports `WORKER_START_MODE=celery`.
+2. Worker skeleton logs structured context keys: `request_id`, `job_id`, `document_id`.
+3. Queue tasks are currently placeholder processing stubs until OCR tasks are implemented.
+4. Local worker start script supports `WORKER_START_MODE=celery`.
