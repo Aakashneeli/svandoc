@@ -13,9 +13,9 @@ Last updated: 2026-02-14
 
 | ID | Priority | Task | Depends On | Definition of Done | Owner |
 |---|---|---|---|---|---|
-| T-001 | P0 | Freeze MVP scope to invoice/receipt extraction only | - | Scope doc approved and out-of-scope list captured | Unassigned |
-| T-002 | P0 | Define canonical extraction schema (`invoice`, `receipt`) | T-001 | JSON schema files committed with versioning policy | Unassigned |
-| T-003 | P0 | Create repository structure for frontend, backend, worker, shared contracts | T-001 | Folder layout created with README per package | Unassigned |
+| T-001 | P0 | [DONE 2026-02-14] Freeze MVP scope to invoice/receipt extraction only | - | Scope doc approved and out-of-scope list captured (`docs/mvp-scope.md`); validation check passed | Codex |
+| T-002 | P0 | [DONE 2026-02-14] Define canonical extraction schema (`invoice`, `receipt`) | T-001 | JSON schema files committed with versioning policy (`contracts/schemas/v1/*.schema.json`, `contracts/schemas/README.md`); contract validation passed | Codex |
+| T-003 | P0 | [DONE 2026-02-14] Create repository structure for frontend, backend, worker, shared contracts | T-001 | Folder layout created with README per package (`frontend/README.md`, `backend/README.md`, `worker/README.md`, `contracts/README.md`); structure validation passed | Codex |
 | T-004 | P0 | Add `.env.example` with all required local variables | T-003 | `.env.example` exists and startup works with documented values | Unassigned |
 | T-005 | P0 | Add local setup guide for Node, Python, Postgres, Redis | T-003 | Setup doc tested on a clean machine checklist | Unassigned |
 | T-006 | P0 | Add scripts for local startup (`api`, `worker`, `frontend`) | T-004 | One-command scripts start all services successfully | Unassigned |
