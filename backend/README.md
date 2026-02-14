@@ -21,9 +21,11 @@ This package will host the FastAPI application.
 Commands:
 
 ```powershell
+myvenv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 powershell -ExecutionPolicy Bypass -File backend/scripts/setup-dev.ps1
 powershell -ExecutionPolicy Bypass -File backend/scripts/lint.ps1
 powershell -ExecutionPolicy Bypass -File backend/scripts/test.ps1
+powershell -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1
 ```
 
 Optional formatter:
@@ -32,7 +34,8 @@ Optional formatter:
 powershell -ExecutionPolicy Bypass -File backend/scripts/format.ps1
 ```
 
-Tooling currently uses Python stdlib scripts in `backend/tools/` so no third-party install is required yet.
+Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies listed in
+`backend/requirements-dev.txt`.
 
 ## Placeholder
 

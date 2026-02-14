@@ -1,2 +1,2 @@
-# No third-party dev dependencies required at this stage.
-# Backend tooling currently uses Python stdlib scripts.
+-r requirements.txt
+httpx==0.28.1

@@ -1,4 +1,6 @@
-param()
+param(
+    [string]$Target = "head"
+)
 
 $ErrorActionPreference = "Stop"
 $backendDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -9,8 +11,8 @@ $pythonCmd = if (Test-Path $venvPython) { $venvPython } else { "python" }
 Push-Location $backendDir
 try {
     $env:PYTHONPATH = "src"
-    & $pythonCmd -m unittest discover -s tests -p "test_*.py"
-    if ($LASTEXITCODE -ne 0) { throw "backend tests failed" }
+    & $pythonCmd -m alembic upgrade $Target
+    if ($LASTEXITCODE -ne 0) { throw "database migration failed" }
 } finally {
     Pop-Location
 }
