@@ -16,6 +16,8 @@ This package will host asynchronous document processing workers.
 - Redis
 - vLLM client integrations
 
-## Placeholder
+## Current status
 
-Implementation starts in `T-020` and related tasks.
+1. Celery worker bootstrap is integrated in `T-018`.
+2. Queue tasks are currently placeholder processing stubs until `T-020+`.
+3. Local worker start script supports `WORKER_START_MODE=celery`.

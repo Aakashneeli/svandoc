@@ -14,6 +14,7 @@ from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, success_envelope
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.job import Job
+from svandoc_backend.queueing import enqueue_processing_job
 from svandoc_backend.storage import get_storage_backend
 from svandoc_backend.uploads import (
     compute_checksum,
@@ -214,6 +215,9 @@ async def upload_documents(
                 retryable=False,
             ),
         )
+
+    for job_id in job_ids:
+        enqueue_processing_job(job_id)
 
     return success_envelope(
         request,

@@ -28,12 +28,14 @@ class UploadEndpointTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
 
         self.previous_storage = os.environ.get("LOCAL_STORAGE_PATH")
+        self.previous_queue_backend = os.environ.get("QUEUE_BACKEND")
         self.previous_storage_backend = os.environ.get("STORAGE_BACKEND")
         self.previous_s3_bucket = os.environ.get("S3_BUCKET")
         self.previous_s3_stub_storage_path = os.environ.get("S3_STUB_STORAGE_PATH")
         self.previous_max_upload_mb = os.environ.get("MAX_UPLOAD_MB")
         self.previous_max_upload_pages = os.environ.get("MAX_UPLOAD_PAGES")
         os.environ["LOCAL_STORAGE_PATH"] = str(self.storage_dir)
+        os.environ["QUEUE_BACKEND"] = "disabled"
         os.environ["STORAGE_BACKEND"] = "local"
         os.environ["MAX_UPLOAD_MB"] = "25"
         os.environ["MAX_UPLOAD_PAGES"] = "20"
@@ -55,6 +57,10 @@ class UploadEndpointTests(unittest.TestCase):
             os.environ.pop("LOCAL_STORAGE_PATH", None)
         else:
             os.environ["LOCAL_STORAGE_PATH"] = self.previous_storage
+        if self.previous_queue_backend is None:
+            os.environ.pop("QUEUE_BACKEND", None)
+        else:
+            os.environ["QUEUE_BACKEND"] = self.previous_queue_backend
         if self.previous_storage_backend is None:
             os.environ.pop("STORAGE_BACKEND", None)
         else:

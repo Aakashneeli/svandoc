@@ -37,6 +37,8 @@ powershell -ExecutionPolicy Bypass -File backend/scripts/format.ps1
 Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies listed in
 `backend/requirements-dev.txt`.
 
-## Placeholder
+## Current status
 
-Service implementation starts in `T-010` and related tasks.
+1. FastAPI health/readiness and upload endpoints are implemented.
+2. PostgreSQL models and Alembic migrations are in place for core entities.
+3. Uploads enqueue Celery jobs when `QUEUE_BACKEND=celery`.

@@ -14,12 +14,18 @@ $workerDir = Join-Path $repoRoot "worker"
 if (-not (Test-Path $workerDir)) {
     throw "Missing worker directory: $workerDir"
 }
+$backendDir = Join-Path $repoRoot "backend"
+if (-not (Test-Path $backendDir)) {
+    throw "Missing backend directory: $backendDir"
+}
 
 Set-Location $repoRoot
 
 if ($mode -eq "celery") {
     Write-Host "[worker] Starting Celery mode"
-    celery -A app.worker_app worker -l info
+    Set-Location $backendDir
+    $env:PYTHONPATH = "src"
+    & $pythonCmd -m celery -A svandoc_backend.queueing.celery_app worker -l info --pool solo
     exit $LASTEXITCODE
 }
 

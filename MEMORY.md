@@ -44,6 +44,7 @@ Important runtime notes for this machine/session:
 4. Backend scripts auto-prefer `myvenv\Scripts\python.exe` when present.
 5. Local PostgreSQL on `localhost:5432` was not reachable in this session (`connection timeout`).
 6. `python-multipart` is required for upload endpoint form parsing and is now pinned in backend dependencies.
+7. Use `uv` for Python dependency management (`uv pip install -r <requirements-file>`); set `UV_CACHE_DIR` under repo-local paths if default cache permissions fail.
 
 ## 5) Completed Task Batches
 
@@ -53,15 +54,16 @@ Completed:
 3. `T-007` to `T-009`: backend tooling, frontend tooling, API envelope/error contracts.
 4. `T-010` to `T-012`: FastAPI bootstrap endpoints, PostgreSQL/Alembic framework, and core tables (`documents`, `jobs`, `extraction_results`) with constraints/indexes.
 5. `T-013` to `T-015`: `user_corrections`/`export_artifacts` tables + migration, upload endpoint, and file validation (type/size/page count) with structured errors.
+6. `T-016` to `T-018`: storage backend abstraction (`local` + `s3` stub), checksum duplicate detection/conflict handling, and Redis/Celery queue integration with local consumption tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-016` Implement storage abstraction interface (`local`, `s3`).
-2. `T-017` Add checksum generation and duplicate detection.
-3. `T-018` Integrate Redis and Celery queue.
+1. `T-019` Create job lifecycle state machine and transitions.
+2. `T-020` Implement worker skeleton with structured logging context.
+3. `T-021` Implement image preprocessing (deskew, denoise, orientation).
 
 Execution rule:
 1. Implement in order.
@@ -119,6 +121,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 2. `T-014` upload endpoint tests passed for single and batch uploads with DB persistence and local file writes.
 3. `T-015` validation tests passed for unsupported type, oversize upload, and page-limit rejection with structured `VALIDATION_ERROR` envelope.
 4. Attempt to run migration against PostgreSQL (`localhost:5432`) still failed with connection timeout because local Postgres was unavailable.
+5. `T-016` storage abstraction tests passed for `local` and `s3` stub backends, with upload endpoint coverage for both modes.
+6. `T-017` duplicate detection tests passed for duplicate-in-request and already-existing-checksum conflict paths (`409 DUPLICATE_DOCUMENT`).
+7. `T-018` queue integration tests passed with Celery eager mode, validating enqueue + local task consumption and job status progression (`queued` -> `processing` -> `completed`).
 
 ## 11) Update Protocol For Future Sessions
 

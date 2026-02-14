@@ -93,6 +93,7 @@ Core endpoints:
 4. Add tests for pipeline logic, retry behavior, and export correctness.
 5. When adding features, update both `PRD.md` and `tasks.md` if scope changes.
 6. Keep `MEMORY.md` current with completed tasks, next tasks, and workflow caveats.
+7. Use `uv pip install -r <requirements-file>` for Python dependency installs (do not use plain `pip install`).
 
 ## Decision Log (Current)
 
