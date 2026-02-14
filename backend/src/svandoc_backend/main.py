@@ -13,10 +13,10 @@ from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, success_envelope
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.job import Job
+from svandoc_backend.storage import get_storage_backend
 from svandoc_backend.uploads import (
     compute_checksum,
     normalized_mime_type,
-    persist_local_file,
     safe_filename,
     validate_upload,
 )
@@ -60,6 +60,20 @@ async def upload_documents(
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
     del doc_type_hint
+
+    try:
+        storage_backend = get_storage_backend()
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=500,
+            content=error_envelope(
+                request,
+                code="CONFIGURATION_ERROR",
+                message=str(exc),
+                details=None,
+                retryable=False,
+            ),
+        )
 
     document_ids: list[str] = []
     job_ids: list[str] = []
@@ -108,7 +122,7 @@ async def upload_documents(
         job_id = str(uuid4())
         content = upload_data["content"]
         checksum = compute_checksum(content)
-        storage_uri = persist_local_file(document_id, str(upload_data["filename"]), content)
+        storage_uri = storage_backend.store_document(document_id, str(upload_data["filename"]), content)
 
         document = Document(
             id=document_id,

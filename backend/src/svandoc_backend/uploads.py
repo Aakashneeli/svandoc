@@ -7,7 +7,6 @@ import os
 import re
 from pathlib import Path
 
-DEFAULT_LOCAL_STORAGE_PATH = "./data/storage"
 DEFAULT_MAX_UPLOAD_MB = 25
 DEFAULT_MAX_UPLOAD_PAGES = 20
 
@@ -32,13 +31,6 @@ def estimate_page_count(content: bytes, mime_type: str) -> int:
         page_count = len(PDF_PAGE_PATTERN.findall(content))
         return page_count if page_count > 0 else 1
     return 1
-
-
-def local_storage_root() -> Path:
-    configured_path = os.getenv("LOCAL_STORAGE_PATH", DEFAULT_LOCAL_STORAGE_PATH).strip()
-    if not configured_path:
-        configured_path = DEFAULT_LOCAL_STORAGE_PATH
-    return Path(configured_path)
 
 
 def safe_filename(filename: str | None) -> str:
@@ -93,13 +85,3 @@ def validate_upload(filename: str | None, mime_type: str | None, content: bytes)
         issues.append(f"Page count exceeds limit of {max_pages} pages.")
 
     return issues, page_count
-
-
-def persist_local_file(document_id: str, filename: str | None, content: bytes) -> str:
-    root = local_storage_root()
-    root.mkdir(parents=True, exist_ok=True)
-
-    target = root / document_id / safe_filename(filename)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(content)
-    return str(target.resolve())

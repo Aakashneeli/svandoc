@@ -28,9 +28,13 @@ class UploadEndpointTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
 
         self.previous_storage = os.environ.get("LOCAL_STORAGE_PATH")
+        self.previous_storage_backend = os.environ.get("STORAGE_BACKEND")
+        self.previous_s3_bucket = os.environ.get("S3_BUCKET")
+        self.previous_s3_stub_storage_path = os.environ.get("S3_STUB_STORAGE_PATH")
         self.previous_max_upload_mb = os.environ.get("MAX_UPLOAD_MB")
         self.previous_max_upload_pages = os.environ.get("MAX_UPLOAD_PAGES")
         os.environ["LOCAL_STORAGE_PATH"] = str(self.storage_dir)
+        os.environ["STORAGE_BACKEND"] = "local"
         os.environ["MAX_UPLOAD_MB"] = "25"
         os.environ["MAX_UPLOAD_PAGES"] = "20"
 
@@ -51,6 +55,18 @@ class UploadEndpointTests(unittest.TestCase):
             os.environ.pop("LOCAL_STORAGE_PATH", None)
         else:
             os.environ["LOCAL_STORAGE_PATH"] = self.previous_storage
+        if self.previous_storage_backend is None:
+            os.environ.pop("STORAGE_BACKEND", None)
+        else:
+            os.environ["STORAGE_BACKEND"] = self.previous_storage_backend
+        if self.previous_s3_bucket is None:
+            os.environ.pop("S3_BUCKET", None)
+        else:
+            os.environ["S3_BUCKET"] = self.previous_s3_bucket
+        if self.previous_s3_stub_storage_path is None:
+            os.environ.pop("S3_STUB_STORAGE_PATH", None)
+        else:
+            os.environ["S3_STUB_STORAGE_PATH"] = self.previous_s3_stub_storage_path
         if self.previous_max_upload_mb is None:
             os.environ.pop("MAX_UPLOAD_MB", None)
         else:
@@ -174,6 +190,44 @@ class UploadEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         details = response.json()["error"]["details"]["files"][0]
         self.assertIn("Page count exceeds limit of 1 pages.", details["issues"])
+
+    def test_upload_supports_s3_storage_stub_mode(self) -> None:
+        os.environ["STORAGE_BACKEND"] = "s3"
+        os.environ["S3_BUCKET"] = "svandoc-test-bucket"
+        s3_stub_root = self.test_dir / "s3-stub"
+        os.environ["S3_STUB_STORAGE_PATH"] = str(s3_stub_root)
+        file_content = b"%PDF-1.7 stub mode payload"
+
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("invoice.pdf", file_content, "application/pdf"))],
+        )
+        self.assertEqual(response.status_code, 200)
+
+        document_id = response.json()["data"]["document_ids"][0]
+        session = self.SessionTesting()
+        try:
+            document = session.get(Document, document_id)
+        finally:
+            session.close()
+
+        self.assertIsNotNone(document)
+        assert document is not None
+        self.assertTrue(document.storage_uri.startswith("s3://svandoc-test-bucket/"))
+        expected_stub_file = s3_stub_root / "svandoc-test-bucket" / document_id / "invoice.pdf"
+        self.assertTrue(expected_stub_file.exists())
+        self.assertEqual(expected_stub_file.read_bytes(), file_content)
+
+    def test_upload_returns_configuration_error_for_unknown_storage_backend(self) -> None:
+        os.environ["STORAGE_BACKEND"] = "unknown-backend"
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("invoice.pdf", b"%PDF-1.7", "application/pdf"))],
+        )
+        self.assertEqual(response.status_code, 500)
+        payload = response.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "CONFIGURATION_ERROR")
 
 
 if __name__ == "__main__":
