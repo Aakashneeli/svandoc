@@ -5,7 +5,7 @@ This file captures project-specific context so future agent sessions stay aligne
 Primary fast-context file:
 1. Read `MEMORY.md` first in every new session.
 2. Use `tasks.md` as the execution order source of truth.
-3. Update `MEMORY.md` after each 3-task completion cycle.
+3. After each completed task, update both `tasks.md` and `MEMORY.md`.
 
 ## Project Snapshot
 
@@ -94,6 +94,7 @@ Core endpoints:
 5. When adding features, update both `PRD.md` and `tasks.md` if scope changes.
 6. Keep `MEMORY.md` current with completed tasks, next tasks, and workflow caveats.
 7. Use `uv pip install -r <requirements-file>` for Python dependency installs (do not use plain `pip install`).
+8. After each completed task, run relevant tests, update `tasks.md` and `MEMORY.md`, then commit and push before starting the next task.
 
 ## Decision Log (Current)
 

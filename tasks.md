@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-14
+Last updated: 2026-02-14 (through T-020)
 
 ## How to use this file
 

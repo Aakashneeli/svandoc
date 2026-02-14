@@ -28,7 +28,7 @@ Out of scope now:
 - Frontend: Next.js + TypeScript (scaffold in progress).
 - Backend: FastAPI app bootstrap completed with `/health`, `/ready`, and `POST /api/documents/upload`.
 - Backend DB layer: SQLAlchemy engine/session bootstrap + Alembic migration framework added.
-- Queue: Redis + Celery (planned).
+- Queue: Redis + Celery integration implemented with enqueue + local eager-consumption tests.
 - DB: PostgreSQL.
 - Storage: local first, S3/R2 later.
 - Inference: vLLM, primary `dots.ocr`, fallback `chandra`.
@@ -55,21 +55,23 @@ Completed:
 4. `T-010` to `T-012`: FastAPI bootstrap endpoints, PostgreSQL/Alembic framework, and core tables (`documents`, `jobs`, `extraction_results`) with constraints/indexes.
 5. `T-013` to `T-015`: `user_corrections`/`export_artifacts` tables + migration, upload endpoint, and file validation (type/size/page count) with structured errors.
 6. `T-016` to `T-018`: storage backend abstraction (`local` + `s3` stub), checksum duplicate detection/conflict handling, and Redis/Celery queue integration with local consumption tests.
+7. `T-019` to `T-020`: job lifecycle state machine + DB transition enforcement and worker structured logging context (`request_id`, `job_id`, `document_id`).
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-019` Create job lifecycle state machine and transitions.
-2. `T-020` Implement worker skeleton with structured logging context.
-3. `T-021` Implement image preprocessing (deskew, denoise, orientation).
+1. `T-021` Implement image preprocessing (deskew, denoise, orientation).
+2. `T-022` Build vLLM client module with timeout/retry policies.
+3. `T-023` Integrate `dots.ocr` extraction adapter.
 
 Execution rule:
 1. Implement in order.
 2. Test each task thoroughly.
-3. Mark each task row as done in `tasks.md`.
-4. Commit and push after each 3-task cycle.
+3. Mark each completed task row as done in `tasks.md`.
+4. Update `MEMORY.md` after each completed task.
+5. Commit and push after each completed task.
 
 ## 7) Key Files To Read First
 
@@ -109,11 +111,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 
 ## 9) Recent Commits (for context)
 
-1. `ef296e9` Complete task `T-014` document upload endpoint.
-2. `58e396c` Complete tasks `T-010` to `T-013` backend API/db foundations.
-3. `49651aa` Add `MEMORY.md` for fast session context and link it in AGENTS.
-4. `42481fb` Complete tasks `T-007` to `T-009`.
-5. `5fce0f4` Complete tasks `T-004` to `T-006`.
+1. `a0d318e` Complete task `T-020` worker skeleton structured logging context.
+2. `9618532` Complete task `T-019` enforce job lifecycle transitions.
+3. `4ceed0e` Complete task `T-018` integrate Redis and Celery queue.
+4. `3ca16f1` Complete task `T-017` duplicate detection by checksum.
+5. `656eb48` Complete task `T-016` storage abstraction interface.
 
 ## 10) Validation Notes From Latest Cycle
 
@@ -124,10 +126,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 5. `T-016` storage abstraction tests passed for `local` and `s3` stub backends, with upload endpoint coverage for both modes.
 6. `T-017` duplicate detection tests passed for duplicate-in-request and already-existing-checksum conflict paths (`409 DUPLICATE_DOCUMENT`).
 7. `T-018` queue integration tests passed with Celery eager mode, validating enqueue + local task consumption and job status progression (`queued` -> `processing` -> `completed`).
+8. `T-019` transition enforcement tests passed in both code and DB (trigger-based restriction of invalid status changes).
+9. `T-020` worker logging tests passed for structured context keys (`request_id`, `job_id`, `document_id`) and request-id propagation from upload enqueue.
 
 ## 11) Update Protocol For Future Sessions
 
-After each completed task batch:
+After each completed task:
 1. Update `tasks.md` done rows.
 2. Update this `MEMORY.md`:
 - completed ranges,
