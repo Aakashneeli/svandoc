@@ -34,3 +34,30 @@ def success_envelope(request: Request, data: Any, meta: dict[str, Any] | None = 
         "error": None,
         "meta": envelope_meta,
     }
+
+
+def error_envelope(
+    request: Request,
+    code: str,
+    message: str,
+    details: Any = None,
+    retryable: bool = False,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    envelope_meta = {"api_version": "v1"}
+    if meta:
+        envelope_meta.update(meta)
+
+    return {
+        "status": "error",
+        "request_id": request_id_from_request(request),
+        "timestamp": utc_timestamp(),
+        "data": None,
+        "error": {
+            "code": code,
+            "message": message,
+            "details": details,
+            "retryable": retryable,
+        },
+        "meta": envelope_meta,
+    }

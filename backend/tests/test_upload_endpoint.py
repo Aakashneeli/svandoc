@@ -28,7 +28,11 @@ class UploadEndpointTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
 
         self.previous_storage = os.environ.get("LOCAL_STORAGE_PATH")
+        self.previous_max_upload_mb = os.environ.get("MAX_UPLOAD_MB")
+        self.previous_max_upload_pages = os.environ.get("MAX_UPLOAD_PAGES")
         os.environ["LOCAL_STORAGE_PATH"] = str(self.storage_dir)
+        os.environ["MAX_UPLOAD_MB"] = "25"
+        os.environ["MAX_UPLOAD_PAGES"] = "20"
 
         def override_db_session():
             session = self.SessionTesting()
@@ -47,6 +51,14 @@ class UploadEndpointTests(unittest.TestCase):
             os.environ.pop("LOCAL_STORAGE_PATH", None)
         else:
             os.environ["LOCAL_STORAGE_PATH"] = self.previous_storage
+        if self.previous_max_upload_mb is None:
+            os.environ.pop("MAX_UPLOAD_MB", None)
+        else:
+            os.environ["MAX_UPLOAD_MB"] = self.previous_max_upload_mb
+        if self.previous_max_upload_pages is None:
+            os.environ.pop("MAX_UPLOAD_PAGES", None)
+        else:
+            os.environ["MAX_UPLOAD_PAGES"] = self.previous_max_upload_pages
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_upload_persists_document_metadata_and_job(self) -> None:
@@ -117,6 +129,51 @@ class UploadEndpointTests(unittest.TestCase):
 
         self.assertEqual(document_count, 2)
         self.assertEqual(job_count, 2)
+
+    def test_upload_rejects_unsupported_file_types_with_structured_error(self) -> None:
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("notes.txt", b"hello", "text/plain"))],
+        )
+        self.assertEqual(response.status_code, 400)
+
+        payload = response.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertIsNone(payload["data"])
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+        self.assertEqual(payload["error"]["retryable"], False)
+        self.assertEqual(payload["error"]["details"]["files"][0]["filename"], "notes.txt")
+
+        session = self.SessionTesting()
+        try:
+            self.assertEqual(session.query(Document).count(), 0)
+            self.assertEqual(session.query(Job).count(), 0)
+        finally:
+            session.close()
+
+    def test_upload_rejects_file_larger_than_configured_limit(self) -> None:
+        os.environ["MAX_UPLOAD_MB"] = "1"
+        payload = b"a" * ((1024 * 1024) + 1)
+
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("big.pdf", payload, "application/pdf"))],
+        )
+        self.assertEqual(response.status_code, 400)
+        details = response.json()["error"]["details"]["files"][0]
+        self.assertIn("File size exceeds limit of 1 MB.", details["issues"])
+
+    def test_upload_rejects_pdf_page_count_above_limit(self) -> None:
+        os.environ["MAX_UPLOAD_PAGES"] = "1"
+        fake_pdf_with_two_pages = b"%PDF-1.7\n/Type /Page\nsomething\n/Type /Page\n"
+
+        response = self.client.post(
+            "/api/documents/upload",
+            files=[("files", ("many-pages.pdf", fake_pdf_with_two_pages, "application/pdf"))],
+        )
+        self.assertEqual(response.status_code, 400)
+        details = response.json()["error"]["details"]["files"][0]
+        self.assertIn("Page count exceeds limit of 1 pages.", details["issues"])
 
 
 if __name__ == "__main__":
