@@ -2,6 +2,11 @@
 
 This file captures project-specific context so future agent sessions stay aligned.
 
+Primary fast-context file:
+1. Read `MEMORY.md` first in every new session.
+2. Use `tasks.md` as the execution order source of truth.
+3. Update `MEMORY.md` after each 3-task completion cycle.
+
 ## Project Snapshot
 
 - Project: `svanDoc`
@@ -82,11 +87,12 @@ Core endpoints:
 
 ## Agent Working Preferences for This Repo
 
-1. Read `PRD.md` and `tasks.md` before implementing new work.
+1. Read `MEMORY.md` first, then `tasks.md`, then `PRD.md`.
 2. Keep tasks dependency-aware; do not start downstream items early.
 3. Avoid adding non-MVP scope unless explicitly requested.
 4. Add tests for pipeline logic, retry behavior, and export correctness.
 5. When adding features, update both `PRD.md` and `tasks.md` if scope changes.
+6. Keep `MEMORY.md` current with completed tasks, next tasks, and workflow caveats.
 
 ## Decision Log (Current)
 
