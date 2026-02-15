@@ -11,7 +11,7 @@ from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from redis import Redis
@@ -259,6 +259,45 @@ def _normalize_export_format(raw_format: str) -> str:
     return (raw_format or "").strip().lower()
 
 
+def _parse_iso_datetime(value: str) -> datetime:
+    text = value.strip()
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def require_zapier_key(request: Request) -> JSONResponse | None:
+    configured = os.getenv("ZAPIER_API_KEY", "").strip()
+    if not configured:
+        return JSONResponse(
+            status_code=503,
+            content=error_envelope(
+                request,
+                code="CONFIGURATION_ERROR",
+                message="Zapier integration is not configured.",
+                details={"missing_env": ["ZAPIER_API_KEY"]},
+                retryable=False,
+            ),
+        )
+
+    received = request.headers.get("x-zapier-api-key", "").strip()
+    if not received or received != configured:
+        return JSONResponse(
+            status_code=403,
+            content=error_envelope(
+                request,
+                code="FORBIDDEN",
+                message="Invalid Zapier API key.",
+                details=None,
+                retryable=False,
+            ),
+        )
+    return None
+
+
 def queue_backend_mode() -> str:
     mode = os.getenv("QUEUE_BACKEND", "celery").strip().lower()
     return mode or "celery"
@@ -495,6 +534,103 @@ async def get_document_audit_log(
                 }
                 for artifact in exports
             ],
+        },
+    )
+
+
+@app.get("/api/integrations/zapier/triggers/job-completed")
+async def zapier_trigger_job_completed(
+    request: Request,
+    since: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_zapier_key(request)
+    if auth_error is not None:
+        return auth_error
+
+    query = db.query(Job).filter(Job.status == "completed")
+    if since:
+        try:
+            since_timestamp = _parse_iso_datetime(since)
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content=error_envelope(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="Invalid 'since' timestamp format.",
+                    details={"since": since},
+                    retryable=False,
+                ),
+            )
+        query = query.filter(Job.finished_at >= since_timestamp)
+
+    jobs = query.order_by(Job.finished_at.desc()).limit(limit).all()
+    return success_envelope(
+        request,
+        data={
+            "jobs": [
+                {
+                    "job_id": str(job.id),
+                    "document_id": str(job.document_id),
+                    "status": str(job.status),
+                    "attempt_count": int(job.attempt_count),
+                    "finished_at": _iso_timestamp(job.finished_at),
+                }
+                for job in jobs
+            ]
+        },
+    )
+
+
+@app.get("/api/integrations/zapier/actions/fetch-results")
+async def zapier_action_fetch_results(
+    request: Request,
+    document_id: str = Query(..., min_length=1),
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_zapier_key(request)
+    if auth_error is not None:
+        return auth_error
+
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+    extraction = (
+        db.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    )
+    if extraction is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="EXTRACTION_NOT_FOUND",
+                message="Extraction result is not available for this document.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    return success_envelope(
+        request,
+        data={
+            "document_id": str(document.id),
+            "schema_version": str(extraction.schema_version),
+            "doc_type": str(extraction.doc_type),
+            "review_required": bool(extraction.is_review_required),
+            "structured_payload": extraction.structured_payload,
+            "confidence_map": extraction.confidence_map,
+            "updated_at": _iso_timestamp(extraction.updated_at),
         },
     )
 
