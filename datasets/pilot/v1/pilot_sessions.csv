@@ -1,0 +1,7 @@
+session_id,user_segment,documents_uploaded,completed_workflow,time_to_first_export_seconds,corrections_count,notes
+pilot-001,bookkeeper,4,true,410,2,Completed full flow with one low-confidence total correction
+pilot-002,owner,2,true,360,1,Completed after adjusting invoice number format
+pilot-003,ops_admin,5,true,520,3,Completed batch run with two date fixes and one tax correction
+pilot-004,owner,1,false,,0,Stopped before review due to missing file naming convention
+pilot-005,bookkeeper,3,true,445,2,Completed with currency and vendor-name correction
+pilot-006,finance_admin,4,true,390,1,Completed with one line-item quantity fix

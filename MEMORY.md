@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-059)
+Last updated: 2026-02-15 (updated after T-060)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -103,6 +103,7 @@ Completed:
 48. `T-057`: Staging config profile support added with `.env.staging.example` and profile-aware environment loading in `scripts/lib/env.ps1` (`.env.<profile>` overlay) enabling config-only swap between local and staging.
 49. `T-058`: Storage backend switch integration coverage added to run the same upload + export path under both `local` and `s3` stub backends, verifying persisted URIs/artifacts across both modes.
 50. `T-059`: Local-to-cloud migration runbook added (`docs/local-to-cloud-migration-runbook.md`) with profile-based staging dry-run validator (`scripts/staging-dry-run.ps1`) that checks required config, executes migrations, and emits evidence at `.local/staging-dry-run.json`.
+51. `T-060`: Pilot workflow metrics package added with anonymized pilot cohort dataset (`datasets/pilot/v1/pilot_sessions.csv`), evaluator module/CLI (`svandoc_backend.pilot_metrics`, `backend/scripts/pilot-metrics.ps1`), and pilot outcome report (`docs/pilot-report-2026-02-15.md`) including completion and time-to-value metrics.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -112,10 +113,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-060` Run pilot with 5 to 10 target users and collect workflow metrics.
-2. `T-061` Prioritize beta feedback and create v1.1 hardening backlog.
-3. `T-062` Implement Google Sheets direct export connector.
-4. `T-063` Implement cloud storage connectors (Google Drive, OneDrive, Dropbox).
+1. `T-061` Prioritize beta feedback and create v1.1 hardening backlog.
+2. `T-062` Implement Google Sheets direct export connector.
+3. `T-063` Implement cloud storage connectors (Google Drive, OneDrive, Dropbox).
+4. `T-064` Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`).
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -225,6 +226,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 52. `T-057` staging-profile checks passed on `2026-02-15`: profile overlay validation script confirmed `.env.<profile>` precedence for `DATABASE_URL` and `REDIS_URL`; repo staging-profile load checks passed with profile-aware env loader.
 53. `T-058` storage-switch checks passed on `2026-02-15`: new integration test `backend/tests/test_storage_backend_switch.py` passed for both `local` and `s3` stub modes; full backend suite passed (`120` tests).
 54. `T-059` staging dry-run checks passed on `2026-02-15`: `scripts/staging-dry-run.ps1` validated required staged keys, executed Alembic migrations to head (`20260215_0005`) against SQLite dry-run profile (`t059`), and wrote evidence output to `.local/staging-dry-run.json`.
+55. `T-060` pilot metrics checks passed on `2026-02-15`: `backend/tests/test_pilot_metrics.py` passed, `backend/scripts/pilot-metrics.ps1` produced `.local-sandbox/pilot-metrics.json` with completion rate `83.33%` and median time-to-value `410` seconds, and the report was captured in `docs/pilot-report-2026-02-15.md`.
 
 ## 11) Update Protocol For Future Sessions
 
