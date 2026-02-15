@@ -140,3 +140,7 @@ Use this canonical local inference contract before OCR pipeline tasks:
 3. Primary model ID: `OCR_DEFAULT_MODEL=FL33TW00D-HF/dots.ocr`
 4. Fallback model ID: `OCR_FALLBACK_MODEL=datalab-to/chandra`
 5. Keep model IDs as upstream canonical Hugging Face IDs; treat quantized/community forks as optional overrides.
+
+Detailed provisioning steps:
+
+1. `docs/inference-model-setup.md`
