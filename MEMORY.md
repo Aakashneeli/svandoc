@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-14
+Last updated: 2026-02-15
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -29,7 +29,7 @@ Out of scope now:
 - Backend: FastAPI app bootstrap completed with `/health`, `/ready`, and `POST /api/documents/upload`.
 - Backend DB layer: SQLAlchemy engine/session bootstrap + Alembic migration framework added.
 - Queue: Redis + Celery integration implemented with enqueue + local eager-consumption tests.
-- DB: PostgreSQL.
+- DB: Supabase Postgres (PostgreSQL-compatible) via `DATABASE_URL`; SQLAlchemy + Alembic retained.
 - Storage: local first, S3/R2 later.
 - Inference: vLLM, primary `dots.ocr`, fallback `chandra`.
 
@@ -42,9 +42,11 @@ Important runtime notes for this machine/session:
 2. Frontend install/check commands should set local npm cache dirs if permission issues appear.
 3. Create and use repo venv `myvenv` before backend package installs.
 4. Backend scripts auto-prefer `myvenv\Scripts\python.exe` when present.
-5. Local PostgreSQL on `localhost:5432` was not reachable in this session (`connection timeout`).
+5. Readiness now checks both DB and Redis; `/ready` returns `503 DEPENDENCY_UNAVAILABLE` on dependency failures.
 6. `python-multipart` is required for upload endpoint form parsing and is now pinned in backend dependencies.
 7. Use `uv` for Python dependency management (`uv pip install -r <requirements-file>`); set `UV_CACHE_DIR` under repo-local paths if default cache permissions fail.
+8. Supabase hostnames (`*.supabase.co`) get `sslmode=require` automatically if not provided in `DATABASE_URL`.
+9. Use Supabase pooler/IPv4-capable `DATABASE_URL` for this environment; direct DB host may fail due to IPv6-only resolution.
 
 ## 5) Completed Task Batches
 
@@ -56,6 +58,9 @@ Completed:
 5. `T-013` to `T-015`: `user_corrections`/`export_artifacts` tables + migration, upload endpoint, and file validation (type/size/page count) with structured errors.
 6. `T-016` to `T-018`: storage backend abstraction (`local` + `s3` stub), checksum duplicate detection/conflict handling, and Redis/Celery queue integration with local consumption tests.
 7. `T-019` to `T-020`: job lifecycle state machine + DB transition enforcement and worker structured logging context (`request_id`, `job_id`, `document_id`).
+8. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+9. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+10. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
@@ -128,6 +133,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 7. `T-018` queue integration tests passed with Celery eager mode, validating enqueue + local task consumption and job status progression (`queued` -> `processing` -> `completed`).
 8. `T-019` transition enforcement tests passed in both code and DB (trigger-based restriction of invalid status changes).
 9. `T-020` worker logging tests passed for structured context keys (`request_id`, `job_id`, `document_id`) and request-id propagation from upload enqueue.
+10. `T-098`, `T-099`, and `T-101` changes passed backend suite (`41` tests) on `2026-02-15`.
+11. `T-100` migration validation succeeded against Supabase Postgres (`20260214_0004` head) using pooled connection settings.
 
 ## 11) Update Protocol For Future Sessions
 

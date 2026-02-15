@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-14 (through T-097)
+Last updated: 2026-02-15 (through T-105)
 
 ## How to use this file
 
@@ -17,13 +17,13 @@ Last updated: 2026-02-14 (through T-097)
 | T-002 | P0 | [DONE 2026-02-14] Define canonical extraction schema (`invoice`, `receipt`) | T-001 | JSON schema files committed with versioning policy (`contracts/schemas/v1/*.schema.json`, `contracts/schemas/README.md`); contract validation passed | Codex |
 | T-003 | P0 | [DONE 2026-02-14] Create repository structure for frontend, backend, worker, shared contracts | T-001 | Folder layout created with README per package (`frontend/README.md`, `backend/README.md`, `worker/README.md`, `contracts/README.md`); structure validation passed | Codex |
 | T-004 | P0 | [DONE 2026-02-14] Add `.env.example` with all required local variables | T-003 | `.env.example` added with PRD-required keys and startup hints; automated key/format validation passed | Codex |
-| T-005 | P0 | [DONE 2026-02-14] Add local setup guide for Node, Python, Postgres, Redis | T-003 | Setup guide added (`docs/local-setup.md`) with clean-machine validation checklist; completeness validation passed | Codex |
+| T-005 | P0 | [DONE 2026-02-14] Add local setup guide for Node, Python, PostgreSQL-compatible DB, Redis | T-003 | Setup guide added (`docs/local-setup.md`) with clean-machine validation checklist; completeness validation passed | Codex |
 | T-006 | P0 | [DONE 2026-02-14] Add scripts for local startup (`api`, `worker`, `frontend`) | T-004 | Added startup scripts (`scripts/start-api.ps1`, `scripts/start-worker.ps1`, `scripts/start-frontend.ps1`) and orchestrator (`scripts/start-local.ps1`, `scripts/stop-local.ps1`); end-to-end startup/shutdown validation passed | Codex |
 | T-007 | P0 | [DONE 2026-02-14] Configure backend Python tooling (formatter, linter, tests) | T-003 | Added backend tooling scripts (`backend/scripts/setup-dev.ps1`, `backend/scripts/format.ps1`, `backend/scripts/lint.ps1`, `backend/scripts/test.ps1`) and stdlib tooling (`backend/tools/*`); setup/lint/test flow passes | Codex |
 | T-008 | P0 | [DONE 2026-02-14] Configure frontend tooling (TypeScript checks, lint, tests) | T-003 | Added frontend tooling config (`frontend/package.json`, `frontend/tsconfig.json`, `frontend/eslint.config.mjs`) and smoke test; `typecheck`, `lint`, and `test` pass locally | Codex |
 | T-009 | P0 | [DONE 2026-02-14] Define API error format and shared response envelope | T-003 | Added shared envelope/error contracts (`contracts/api/*`) with examples and validator script; contract validations pass | Codex |
 | T-010 | P0 | [DONE 2026-02-14] Bootstrap FastAPI app with health and readiness endpoints | T-003 | `/health` and `/ready` return expected payloads | Codex |
-| T-011 | P0 | [DONE 2026-02-14] Set up PostgreSQL connection and migration framework | T-010 | Initial migration runs against local Postgres | Codex |
+| T-011 | P0 | [DONE 2026-02-14] Set up PostgreSQL-compatible connection and migration framework | T-010 | Initial migration runs against local PostgreSQL-compatible instance | Codex |
 | T-012 | P0 | [DONE 2026-02-14] Implement core tables: `documents`, `jobs`, `extraction_results` | T-011, T-002 | Tables created with constraints and indexes | Codex |
 | T-013 | P0 | [DONE 2026-02-14] Implement tables: `user_corrections`, `export_artifacts` | T-012 | Tables created and relations validated | Codex |
 | T-014 | P0 | [DONE 2026-02-14] Build document upload endpoint (`POST /api/documents/upload`) | T-010, T-012 | Upload persists metadata and returns IDs | Codex |
@@ -69,7 +69,7 @@ Last updated: 2026-02-14 (through T-097)
 | T-054 | P1 | Define alert thresholds for repeated failures and backlog | T-053 | Alert rules documented and test-triggered once | Unassigned |
 | T-055 | P1 | Add API rate limiting and abuse guardrails | T-010 | Rate limits active and tested | Unassigned |
 | T-056 | P1 | Add audit log views for correction and export events | T-013, T-041, T-036 | Users can inspect historical edits and exports | Unassigned |
-| T-057 | P1 | Create staging config profile for managed Postgres/Redis | T-004 | Environment swap works without code changes | Unassigned |
+| T-057 | P1 | Create staging config profile for managed Supabase Postgres and Redis | T-004 | Environment swap works without code changes | Unassigned |
 | T-058 | P1 | Implement storage backend switch test (`local` -> `s3`) | T-016 | Same upload/export tests pass under both backends | Unassigned |
 | T-059 | P1 | Create local-to-cloud migration runbook | T-057, T-058 | Runbook validated in staging dry run | Unassigned |
 | T-060 | P1 | Run pilot with 5 to 10 target users and collect workflow metrics | T-045 | Pilot report includes completion and time-to-value metrics | Unassigned |
@@ -110,6 +110,14 @@ Last updated: 2026-02-14 (through T-097)
 | T-095 | P2 | Add template versioning, workspace default template selection, and change history | T-087, T-056 | Versioned template lifecycle with default selection and auditable change records | Unassigned |
 | T-096 | P2 | Add output preset packs for external tools using CSV/XLSX/JSON shaping profiles | T-089 | Presets generate tool-friendly headers/structures without requiring direct connector auth | Unassigned |
 | T-097 | P2 | Integrate export template mappings with custom extraction templates | T-073, T-095 | Extraction template outputs can be bound to export templates with compatibility checks | Unassigned |
+| T-098 | P0 | [DONE 2026-02-15] Configure backend database runtime for Supabase Postgres (`DATABASE_URL`, SSL, pooling-safe defaults) | T-020 | API boots with Supabase connection string; DB session/engine tests pass with Supabase-style URL inputs | Codex |
+| T-099 | P0 | [DONE 2026-02-15] Update environment/docs for Supabase-first development and migration workflow | T-098 | `.env.example`, `docs/local-setup.md`, and backend README document Supabase setup, secrets handling, and migration commands | Codex |
+| T-100 | P0 | [DONE 2026-02-15] Validate Alembic migrations end-to-end against Supabase Postgres | T-099 | `alembic upgrade head` and `alembic current` validated on Supabase; migration notes captured | Codex |
+| T-101 | P0 | [DONE 2026-02-15] Strengthen readiness checks to include DB and Redis dependency health | T-099, T-018 | `/ready` reports dependency status and fails when critical dependencies are unavailable; tests added | Codex |
+| T-102 | P0 | Configure production CORS and API base URL wiring for Vercel frontend -> hosted FastAPI | T-101, T-037 | Frontend can target hosted API URL; backend CORS allows configured Vercel origin(s) only | Unassigned |
+| T-103 | P0 | Define and document split deployment topology (Vercel frontend + hosted API/worker + managed Redis) | T-102 | Deployment runbook includes env vars, service responsibilities, start commands, and rollback notes | Unassigned |
+| T-104 | P0 | Add deploy gate for migration-before-release and hosted smoke validation | T-103 | Deployment checklist/automation enforces migrations before API rollout and validates upload -> queue -> completion smoke path | Unassigned |
+| T-105 | P0 | Run first managed-environment smoke test with Vercel frontend and Supabase-backed API | T-104 | End-to-end flow verified in hosted setup with evidence logged and follow-up issues captured | Unassigned |
 
 ## Milestone Mapping (MVP + Post-MVP)
 
@@ -126,6 +134,7 @@ Last updated: 2026-02-14 (through T-097)
 | M9 Commercialization (Deferred) | T-084 |
 | M10 Guided Template Export | T-085 to T-093 |
 | M11 Advanced Personalization | T-094 to T-097 |
+| M12 Managed Deploy Foundation | T-098 to T-105 |
 
 ## MVP Exit Checklist
 

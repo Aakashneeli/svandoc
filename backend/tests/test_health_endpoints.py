@@ -1,5 +1,6 @@
 import re
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -34,7 +35,11 @@ class HealthAndReadinessEndpointTests(unittest.TestCase):
         self.assertEqual(payload["data"]["status"], "ok")
 
     def test_ready_returns_ready_payload(self) -> None:
-        response = self.client.get("/ready")
+        with (
+            patch("svandoc_backend.main.check_database_ready", return_value=(True, "ok")),
+            patch("svandoc_backend.main.check_redis_ready", return_value=(True, "ok")),
+        ):
+            response = self.client.get("/ready")
         self.assertEqual(response.status_code, 200)
 
         payload = response.json()
@@ -42,6 +47,25 @@ class HealthAndReadinessEndpointTests(unittest.TestCase):
         self.assertEqual(payload["data"]["service"], "svandoc-backend")
         self.assertEqual(payload["data"]["status"], "ready")
         self.assertEqual(payload["data"]["checks"]["api"], "ok")
+        self.assertEqual(payload["data"]["checks"]["database"], "ok")
+        self.assertEqual(payload["data"]["checks"]["redis"], "ok")
+
+    def test_ready_returns_503_when_dependencies_unavailable(self) -> None:
+        with (
+            patch("svandoc_backend.main.check_database_ready", return_value=(False, "error:OperationalError")),
+            patch("svandoc_backend.main.check_redis_ready", return_value=(False, "error:ConnectionError")),
+        ):
+            response = self.client.get("/ready")
+        self.assertEqual(response.status_code, 503)
+
+        payload = response.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertIsNone(payload["data"])
+        self.assertEqual(payload["error"]["code"], "DEPENDENCY_UNAVAILABLE")
+        self.assertEqual(payload["error"]["retryable"], True)
+        self.assertEqual(payload["error"]["details"]["checks"]["api"], "ok")
+        self.assertEqual(payload["error"]["details"]["checks"]["database"], "error:OperationalError")
+        self.assertEqual(payload["error"]["details"]["checks"]["redis"], "error:ConnectionError")
 
     def test_request_id_header_is_respected(self) -> None:
         response = self.client.get("/health", headers={"x-request-id": "req_custom_123"})

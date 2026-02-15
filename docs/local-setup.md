@@ -1,6 +1,6 @@
 # Local Setup Guide (No Docker)
 
-Last updated: 2026-02-14
+Last updated: 2026-02-15
 
 This guide sets up svanDoc for local-first development on a clean machine.
 
@@ -8,7 +8,7 @@ This guide sets up svanDoc for local-first development on a clean machine.
 
 1. Node.js 20 LTS
 2. Python 3.11
-3. PostgreSQL 16
+3. Supabase project (PostgreSQL-compatible) or local PostgreSQL 16
 4. Redis 7
 5. Git
 
@@ -34,11 +34,24 @@ python --version
 pip --version
 ```
 
-### PostgreSQL 16
+### Supabase Postgres (recommended)
+
+1. Create a Supabase project.
+2. Open `Project Settings` -> `Database` -> `Connection string`.
+3. Copy the `URI` connection string and set `DATABASE_URL` in `.env`.
+4. Ensure `sslmode=require` is present.
+5. Verify connectivity by running:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1
+```
+
+### Local PostgreSQL 16 (optional fallback)
 
 1. Install PostgreSQL 16.
 2. Create database `svandoc`.
-3. Verify:
+3. Set `.env` `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/svandoc`.
+4. Verify:
 
 ```powershell
 psql --version
@@ -74,6 +87,7 @@ Minimum local values to verify:
 3. `STORAGE_BACKEND=local`
 4. `LOCAL_STORAGE_PATH`
 5. `API_PORT` and `FRONTEND_PORT`
+6. `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT_SECONDS`, `DB_POOL_RECYCLE_SECONDS`
 
 ## 4. Startup
 
@@ -104,3 +118,12 @@ Run these checks in order:
 9. `powershell -ExecutionPolicy Bypass -File scripts/stop-local.ps1` stops all local service processes
 
 If all checks pass, local setup is ready for the next implementation tasks.
+
+## 6. Supabase Migration Validation Checklist
+
+Run this when validating a new Supabase environment:
+
+1. Set `.env` `DATABASE_URL` to your Supabase URI with `sslmode=require`.
+2. Run `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1`.
+3. Run `myvenv\Scripts\python.exe -m alembic -c backend\alembic.ini current` from repo root.
+4. Confirm output revision is `20260214_0004` (or newer if additional migrations were added).

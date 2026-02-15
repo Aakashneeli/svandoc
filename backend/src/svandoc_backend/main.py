@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
+from redis import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
@@ -29,6 +33,36 @@ app = FastAPI(
 )
 
 
+def queue_backend_mode() -> str:
+    mode = os.getenv("QUEUE_BACKEND", "celery").strip().lower()
+    return mode or "celery"
+
+
+def redis_url() -> str:
+    value = os.getenv("REDIS_URL", "redis://localhost:6379/0").strip()
+    return value or "redis://localhost:6379/0"
+
+
+def check_database_ready(db: Session) -> tuple[bool, str]:
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - defensive check path
+        return False, f"error:{exc.__class__.__name__}"
+    return True, "ok"
+
+
+def check_redis_ready() -> tuple[bool, str]:
+    if queue_backend_mode() == "disabled":
+        return True, "skipped"
+
+    try:
+        client = Redis.from_url(redis_url(), socket_connect_timeout=2, socket_timeout=2)
+        client.ping()
+    except RedisError as exc:
+        return False, f"error:{exc.__class__.__name__}"
+    return True, "ok"
+
+
 @app.get("/health")
 async def health(request: Request) -> dict[str, object]:
     return success_envelope(
@@ -41,15 +75,35 @@ async def health(request: Request) -> dict[str, object]:
 
 
 @app.get("/ready")
-async def ready(request: Request) -> dict[str, object]:
+async def ready(request: Request, db: Session = Depends(get_db_session)) -> dict[str, object]:
+    db_ok, db_status = check_database_ready(db)
+    redis_ok, redis_status = check_redis_ready()
+    is_ready = db_ok and redis_ok
+
+    checks = {
+        "api": "ok",
+        "database": db_status,
+        "redis": redis_status,
+    }
+
+    if not is_ready:
+        return JSONResponse(
+            status_code=503,
+            content=error_envelope(
+                request,
+                code="DEPENDENCY_UNAVAILABLE",
+                message="One or more dependencies are unavailable.",
+                details={"checks": checks},
+                retryable=True,
+            ),
+        )
+
     return success_envelope(
         request,
         data={
             "service": "svandoc-backend",
             "status": "ready",
-            "checks": {
-                "api": "ok",
-            },
+            "checks": checks,
         },
     )
 

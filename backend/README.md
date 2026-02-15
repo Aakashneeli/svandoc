@@ -13,7 +13,7 @@ This package will host the FastAPI application.
 
 - Python 3.11
 - FastAPI
-- PostgreSQL
+- Supabase Postgres (PostgreSQL-compatible)
 - Redis (queue integration)
 
 ## Developer tooling
@@ -21,7 +21,7 @@ This package will host the FastAPI application.
 Commands:
 
 ```powershell
-myvenv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
+uv pip install -r backend/requirements-dev.txt
 powershell -ExecutionPolicy Bypass -File backend/scripts/setup-dev.ps1
 powershell -ExecutionPolicy Bypass -File backend/scripts/lint.ps1
 powershell -ExecutionPolicy Bypass -File backend/scripts/test.ps1
@@ -40,5 +40,11 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 ## Current status
 
 1. FastAPI health/readiness and upload endpoints are implemented.
-2. PostgreSQL models and Alembic migrations are in place for core entities.
+2. PostgreSQL-compatible models and Alembic migrations are in place for core entities.
 3. Uploads enqueue Celery jobs when `QUEUE_BACKEND=celery`.
+
+## Supabase Notes
+
+1. Set `DATABASE_URL` to the Supabase Postgres URI (`sslmode=require`).
+2. Migration command: `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1`.
+3. Verify migration revision: `myvenv\Scripts\python.exe -m alembic -c backend\alembic.ini current`.

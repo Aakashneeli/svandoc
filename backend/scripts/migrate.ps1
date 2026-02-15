@@ -1,5 +1,6 @@
 param(
-    [string]$Target = "head"
+    [string]$Target = "head",
+    [switch]$ShowCurrent
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +14,11 @@ try {
     $env:PYTHONPATH = "src"
     & $pythonCmd -m alembic upgrade $Target
     if ($LASTEXITCODE -ne 0) { throw "database migration failed" }
+
+    if ($ShowCurrent) {
+        & $pythonCmd -m alembic current
+        if ($LASTEXITCODE -ne 0) { throw "failed to read current migration revision" }
+    }
 } finally {
     Pop-Location
 }
