@@ -47,3 +47,12 @@ test("documents page includes search and filter controls", () => {
   assert.match(documentsPage, /status/);
   assert.match(documentsPage, /filterDocuments/);
 });
+
+test("review page renders side-by-side review and extraction loading", () => {
+  const reviewPage = readFileSync(new URL("../app/review/page.tsx", import.meta.url), "utf8");
+  assert.match(reviewPage, /Load a document to inspect source and extraction output side-by-side/);
+  assert.match(reviewPage, /Load Review/);
+  assert.match(reviewPage, /Document URL \(optional\)/);
+  assert.match(reviewPage, /Extracted Data/);
+  assert.match(reviewPage, /fetchDocumentExtraction/);
+});

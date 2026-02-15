@@ -285,6 +285,68 @@ a {
   font-size: 0.84rem;
 }
 
+.review-controls {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.7rem;
+  align-items: end;
+}
+
+.review-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.review-panel {
+  min-height: 520px;
+  display: grid;
+  align-content: start;
+}
+
+.review-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #dde3ea;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #f7fafc;
+  font-size: 0.86rem;
+}
+
+.document-frame {
+  margin-top: 0.4rem;
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid #d2dae3;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.review-json {
+  margin: 0.4rem 0 0;
+  border: 1px solid #d6dde6;
+  border-radius: 12px;
+  background: #0f1720;
+  color: #e8edf4;
+  padding: 0.9rem;
+  overflow: auto;
+  min-height: 330px;
+  font-size: 0.8rem;
+}
+
+.review-error {
+  margin: 0.7rem 0 0;
+  color: #9d2b2b;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .topbar-inner {
     align-items: flex-start;
@@ -303,5 +365,14 @@ a {
   .document-row {
     grid-template-columns: 1fr;
     gap: 0.45rem;
+  }
+
+  .review-controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .review-grid {
+    grid-template-columns: 1fr;
   }
 }
