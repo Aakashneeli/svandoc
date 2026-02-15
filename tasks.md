@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-058)
+Last updated: 2026-02-15 (through T-059)
 
 ## How to use this file
 
@@ -76,7 +76,7 @@ Last updated: 2026-02-15 (through T-058)
 | T-056 | P1 | [DONE 2026-02-15] Add audit log views for correction and export events | T-013, T-041, T-036 | Users can inspect historical edits and exports | Codex |
 | T-057 | P1 | [DONE 2026-02-15] Create staging config profile for managed Supabase Postgres and Redis | T-004 | Environment swap works without code changes | Codex |
 | T-058 | P1 | [DONE 2026-02-15] Implement storage backend switch test (`local` -> `s3`) | T-016 | Same upload/export tests pass under both backends | Codex |
-| T-059 | P1 | Create local-to-cloud migration runbook | T-057, T-058 | Runbook validated in staging dry run | Unassigned |
+| T-059 | P1 | [DONE 2026-02-15] Create local-to-cloud migration runbook | T-057, T-058 | Runbook validated in staging dry run | Codex |
 | T-060 | P1 | Run pilot with 5 to 10 target users and collect workflow metrics | T-045 | Pilot report includes completion and time-to-value metrics | Unassigned |
 | T-061 | P1 | Prioritize beta feedback and create v1.1 hardening backlog | T-060 | Ranked backlog with impact/effort and owners | Unassigned |
 | T-062 | P2 | Implement Google Sheets direct export connector | T-036 | Users can push extraction results to a selected Sheet via OAuth flow | Unassigned |
