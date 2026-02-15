@@ -137,6 +137,14 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(extraction)
         assert extraction is not None
         self.assertEqual(extraction.raw_ocr_text, "ACME INVOICE")
+        self.assertEqual(extraction.schema_version, "1.0.0")
+        self.assertEqual(extraction.doc_type, "invoice")
+        self.assertIn("schema_version", extraction.structured_payload)
+        self.assertEqual(extraction.structured_payload["schema_version"], "1.0.0")
+        self.assertIn("confidence", extraction.structured_payload)
+        self.assertEqual(extraction.confidence_map, extraction.structured_payload["confidence"])
+        self.assertIn("warnings", extraction.structured_payload)
+        self.assertEqual(extraction.structured_payload.get("review_required"), extraction.is_review_required)
         self.assertFalse(extraction.is_review_required)
         self.assertGreaterEqual(log_mock.call_count, 2)
         for call in log_mock.call_args_list:
@@ -346,6 +354,9 @@ class QueueingIntegrationTests(unittest.TestCase):
         assert extraction is not None
         self.assertIsNotNone(job)
         assert job is not None
+        self.assertEqual(extraction.schema_version, "1.0.0")
+        self.assertEqual(extraction.confidence_map, extraction.structured_payload["confidence"])
+        self.assertEqual(extraction.structured_payload.get("review_required"), extraction.is_review_required)
         self.assertTrue(extraction.is_review_required)
         warnings = extraction.structured_payload.get("warnings")
         self.assertIsInstance(warnings, list)

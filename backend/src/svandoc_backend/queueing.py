@@ -153,6 +153,7 @@ def _persist_extraction_result(
     session: Session,
     *,
     document_id: str,
+    schema_version: str,
     doc_type: str,
     model: str,
     raw_text: str,
@@ -165,7 +166,7 @@ def _persist_extraction_result(
         existing = ExtractionResult(
             id=str(uuid4()),
             document_id=document_id,
-            schema_version="v1",
+            schema_version=schema_version,
             doc_type=doc_type,
             raw_ocr_text=raw_text,
             structured_payload=structured_payload,
@@ -174,6 +175,7 @@ def _persist_extraction_result(
         )
         session.add(existing)
     else:
+        existing.schema_version = schema_version
         existing.raw_ocr_text = raw_text
         existing.structured_payload = structured_payload
         existing.confidence_map = confidence_map
@@ -289,6 +291,7 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
         _persist_extraction_result(
             session,
             document_id=document.id,
+            schema_version=str(normalized_payload.get("schema_version", "1.0.0")),
             doc_type="invoice",
             model=extraction.model,
             raw_text=extraction.raw_text,

@@ -46,7 +46,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-026 | P0 | [DONE 2026-02-15] Normalize raw OCR output into canonical schema | T-023, T-024, T-002 | Normalization handles required schema fields | Codex |
 | T-027 | P0 | [DONE 2026-02-15] Implement field-level confidence scoring map | T-026 | Confidence values emitted for all extractable fields | Codex |
 | T-028 | P0 | [DONE 2026-02-15] Add validation rules (total math, date formats, currency consistency) | T-026 | Invalid fields flagged with actionable messages | Codex |
-| T-029 | P0 | Persist extraction results and review flags | T-026, T-027, T-028 | DB row saved with schema version and status flags | Unassigned |
+| T-029 | P0 | [DONE 2026-02-15] Persist extraction results and review flags | T-026, T-027, T-028 | DB row saved with schema version and status flags | Codex |
 | T-030 | P0 | Implement `GET /api/jobs/{job_id}` endpoint | T-019 | Endpoint returns current status and error details | Unassigned |
 | T-031 | P0 | Implement `GET /api/documents/{id}/extraction` endpoint | T-029 | Endpoint returns extraction payload and confidence map | Unassigned |
 | T-032 | P0 | Implement correction endpoint (`PATCH /extraction`) | T-031, T-013 | Corrections persist with actor and timestamp | Unassigned |
