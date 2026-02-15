@@ -27,7 +27,13 @@ export type ExtractionPatchResponse = {
   review_required: boolean;
 };
 
-export type ExportFormat = "json" | "csv" | "xlsx";
+export type ExportFormat = "json" | "csv" | "xlsx" | "gsheets";
+
+export type ExportOptions = {
+  google_spreadsheet_id?: string;
+  google_sheet_name?: string;
+  google_access_token?: string;
+};
 
 export type ExportArtifactData = {
   artifact_id: string;
@@ -109,13 +115,14 @@ export async function requestDocumentExport(
   apiBaseUrl: string,
   documentId: string,
   format: ExportFormat,
+  options: ExportOptions = {},
 ): Promise<ExportArtifactData> {
   const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/export`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ format }),
+    body: JSON.stringify({ format, ...options }),
   });
   const payload = (await response.json()) as EnvelopeResponse<ExportArtifactData>;
   if (!response.ok || !payload.data) {

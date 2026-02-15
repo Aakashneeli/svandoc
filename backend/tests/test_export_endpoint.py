@@ -4,6 +4,7 @@ import shutil
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import sqlalchemy as sa
@@ -16,6 +17,7 @@ from svandoc_backend.main import app
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
+from svandoc_backend.google_sheets_export import GoogleSheetsExportResult
 
 
 class ExportEndpointTests(unittest.TestCase):
@@ -185,6 +187,54 @@ class ExportEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         payload = response.json()
         self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_gsheets_persists_artifact_with_connector_uri(self) -> None:
+        document_id = "doc-export-gsheets"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.append_to_google_sheet") as mocked_append:
+            mocked_append.return_value = GoogleSheetsExportResult(
+                spreadsheet_id="spreadsheet-123",
+                sheet_name="InvoiceExports",
+                updated_range="InvoiceExports!A1:AA2",
+                updated_rows=2,
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "gsheets",
+                    "google_spreadsheet_id": "spreadsheet-123",
+                    "google_sheet_name": "InvoiceExports",
+                    "google_access_token": "token-value",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "gsheets")
+        self.assertEqual(data["storage_uri"], "gsheets://spreadsheet-123/InvoiceExports")
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, data["artifact_id"])
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.format, "gsheets")
+        self.assertEqual(artifact.storage_uri, "gsheets://spreadsheet-123/InvoiceExports")
+
+    def test_export_gsheets_requires_oauth_fields(self) -> None:
+        document_id = "doc-export-gsheets-validation"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "gsheets"},
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
         self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
 
     def test_export_returns_404_when_document_missing(self) -> None:

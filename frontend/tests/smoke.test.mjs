@@ -65,7 +65,7 @@ test("review page renders side-by-side review and extraction loading", () => {
   assert.match(reviewPage, /Show low-confidence fields only/);
   assert.match(reviewPage, /confidenceForPath/);
   assert.match(reviewPage, /Export Actions/);
-  assert.match(reviewPage, /Generate and download JSON, CSV, or XLSX artifacts/);
+  assert.match(reviewPage, /Generate JSON, CSV, XLSX, or push directly to Google Sheets/);
   assert.match(reviewPage, /format\.toUpperCase/);
   assert.match(reviewPage, /requestDocumentExport/);
   assert.match(reviewPage, /Field saves validate path and payload/);

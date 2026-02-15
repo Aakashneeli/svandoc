@@ -10,6 +10,7 @@ import {
   patchDocumentExtraction,
   requestDocumentExport,
   type DocumentAuditData,
+  type ExportOptions,
   type ExtractionData,
   type ExportArtifactData,
   type ExportFormat,
@@ -36,12 +37,17 @@ export default function ReviewPage() {
     json: "idle",
     csv: "idle",
     xlsx: "idle",
+    gsheets: "idle",
   });
   const [exportMessageByFormat, setExportMessageByFormat] = useState<Record<ExportFormat, string>>({
     json: "",
     csv: "",
     xlsx: "",
+    gsheets: "",
   });
+  const [googleSpreadsheetId, setGoogleSpreadsheetId] = useState("");
+  const [googleSheetName, setGoogleSheetName] = useState("Sheet1");
+  const [googleAccessToken, setGoogleAccessToken] = useState("");
   const [artifactsByFormat, setArtifactsByFormat] = useState<Partial<Record<ExportFormat, ExportArtifactData>>>({});
   const [audit, setAudit] = useState<DocumentAuditData | null>(null);
 
@@ -263,10 +269,24 @@ export default function ReviewPage() {
       return;
     }
 
+    const options: ExportOptions = {};
+    if (format === "gsheets") {
+      if (!googleSpreadsheetId.trim() || !googleAccessToken.trim()) {
+        setExportMessageByFormat((current) => ({
+          ...current,
+          gsheets: "Google spreadsheet ID and OAuth access token are required.",
+        }));
+        return;
+      }
+      options.google_spreadsheet_id = googleSpreadsheetId.trim();
+      options.google_sheet_name = googleSheetName.trim() || "Sheet1";
+      options.google_access_token = googleAccessToken.trim();
+    }
+
     setExportStateByFormat((current) => ({ ...current, [format]: "running" }));
     setExportMessageByFormat((current) => ({ ...current, [format]: "" }));
     try {
-      const artifact = await requestDocumentExport(API_BASE_URL, activeDocumentId, format);
+      const artifact = await requestDocumentExport(API_BASE_URL, activeDocumentId, format, options);
       setArtifactsByFormat((current) => ({ ...current, [format]: artifact }));
       const auditResult = await fetchDocumentAudit(API_BASE_URL, activeDocumentId);
       setAudit(auditResult);
@@ -420,9 +440,38 @@ export default function ReviewPage() {
 
               <div className="panel export-panel">
                 <h3>Export Actions</h3>
-                <p className="empty-note">Generate and download JSON, CSV, or XLSX artifacts.</p>
+                <p className="empty-note">Generate JSON, CSV, XLSX, or push directly to Google Sheets.</p>
+                <div className="filter-grid">
+                  <label className="field">
+                    Google Spreadsheet ID
+                    <input
+                      type="text"
+                      placeholder="1AbC...XYZ"
+                      value={googleSpreadsheetId}
+                      onChange={(event) => setGoogleSpreadsheetId(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Google Sheet Name
+                    <input
+                      type="text"
+                      placeholder="Sheet1"
+                      value={googleSheetName}
+                      onChange={(event) => setGoogleSheetName(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    OAuth Access Token
+                    <input
+                      type="password"
+                      placeholder="ya29..."
+                      value={googleAccessToken}
+                      onChange={(event) => setGoogleAccessToken(event.target.value)}
+                    />
+                  </label>
+                </div>
                 <div className="export-actions">
-                  {(["json", "csv", "xlsx"] as ExportFormat[]).map((format) => {
+                  {(["json", "csv", "xlsx", "gsheets"] as ExportFormat[]).map((format) => {
                     const artifact = artifactsByFormat[format];
                     const running = exportStateByFormat[format] === "running";
                     return (

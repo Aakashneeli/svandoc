@@ -48,16 +48,20 @@ def build_json_export(payload: dict[str, Any]) -> bytes:
 
 
 def build_csv_export(payload: dict[str, Any]) -> bytes:
-    validate_canonical_payload(payload)
-    doc_type = str(payload.get("document_type", "")).strip().lower()
-    headers = _invoice_csv_headers() if doc_type == "invoice" else _receipt_csv_headers()
-    row = _build_invoice_csv_row(payload) if doc_type == "invoice" else _build_receipt_csv_row(payload)
-
+    headers, row = build_tabular_export_row(payload)
     buffer = StringIO()
     writer = csv.DictWriter(buffer, fieldnames=headers, lineterminator="\n", extrasaction="ignore")
     writer.writeheader()
     writer.writerow(row)
     return buffer.getvalue().encode("utf-8")
+
+
+def build_tabular_export_row(payload: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+    validate_canonical_payload(payload)
+    doc_type = str(payload.get("document_type", "")).strip().lower()
+    headers = _invoice_csv_headers() if doc_type == "invoice" else _receipt_csv_headers()
+    row = _build_invoice_csv_row(payload) if doc_type == "invoice" else _build_receipt_csv_row(payload)
+    return headers, row
 
 
 def build_xlsx_export(payload: dict[str, Any]) -> bytes:

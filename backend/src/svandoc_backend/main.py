@@ -25,7 +25,13 @@ from svandoc_backend.alerts import evaluate_alerts
 from svandoc_backend.auth import require_roles
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
-from svandoc_backend.export_service import build_csv_export, build_json_export, build_xlsx_export
+from svandoc_backend.export_service import (
+    build_csv_export,
+    build_json_export,
+    build_tabular_export_row,
+    build_xlsx_export,
+)
+from svandoc_backend.google_sheets_export import GoogleSheetsExportError, append_to_google_sheet
 from svandoc_backend.logging_sink import configure_structured_logging
 from svandoc_backend.metrics import metrics_snapshot, record_api_request
 from svandoc_backend.models.document import Document
@@ -182,6 +188,9 @@ class ExtractionCorrectionRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     format: str = Field(..., min_length=1)
+    google_spreadsheet_id: str | None = None
+    google_sheet_name: str | None = None
+    google_access_token: str | None = None
 
 
 def _iso_timestamp(value: datetime | None) -> str | None:
@@ -595,14 +604,14 @@ async def export_document(
         return auth_error
 
     export_format = _normalize_export_format(export_request.format)
-    if export_format not in {"json", "csv", "xlsx"}:
+    if export_format not in {"json", "csv", "xlsx", "gsheets"}:
         return JSONResponse(
             status_code=400,
             content=error_envelope(
                 request,
                 code="VALIDATION_ERROR",
                 message="Unsupported export format.",
-                details={"format": export_request.format, "supported_formats": ["json", "csv", "xlsx"]},
+                details={"format": export_request.format, "supported_formats": ["json", "csv", "xlsx", "gsheets"]},
                 retryable=False,
             ),
         )
@@ -635,31 +644,72 @@ async def export_document(
             ),
         )
 
-    try:
-        storage_backend = get_storage_backend()
-    except ValueError as exc:
-        return JSONResponse(
-            status_code=500,
-            content=error_envelope(
-                request,
-                code="CONFIGURATION_ERROR",
-                message=str(exc),
-                details=None,
-                retryable=False,
-            ),
-        )
-
     payload = extraction.structured_payload
-    if export_format == "json":
-        export_content = build_json_export(payload)
-    elif export_format == "csv":
-        export_content = build_csv_export(payload)
-    else:
-        export_content = build_xlsx_export(payload)
-
     artifact_id = str(uuid4())
-    artifact_filename = f"{document_id}.{export_format}"
-    storage_uri = storage_backend.store_document(artifact_id, artifact_filename, export_content)
+    if export_format == "gsheets":
+        spreadsheet_id = (export_request.google_spreadsheet_id or "").strip()
+        access_token = (export_request.google_access_token or "").strip()
+        sheet_name = (export_request.google_sheet_name or "").strip() or "Sheet1"
+        missing_fields: list[str] = []
+        if not spreadsheet_id:
+            missing_fields.append("google_spreadsheet_id")
+        if not access_token:
+            missing_fields.append("google_access_token")
+        if missing_fields:
+            return JSONResponse(
+                status_code=400,
+                content=error_envelope(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="Google Sheets export requires OAuth token and spreadsheet target.",
+                    details={"missing_fields": missing_fields},
+                    retryable=False,
+                ),
+            )
+        headers, row = build_tabular_export_row(payload)
+        try:
+            connector_result = append_to_google_sheet(
+                access_token=access_token,
+                spreadsheet_id=spreadsheet_id,
+                sheet_name=sheet_name,
+                headers=headers,
+                row=row,
+            )
+        except GoogleSheetsExportError as exc:
+            return JSONResponse(
+                status_code=502,
+                content=error_envelope(
+                    request,
+                    code="EXPORT_DELIVERY_FAILED",
+                    message="Google Sheets export failed.",
+                    details={"connector": "google_sheets", "reason": str(exc)},
+                    retryable=True,
+                ),
+            )
+        storage_uri = f"gsheets://{connector_result.spreadsheet_id}/{connector_result.sheet_name}"
+    else:
+        try:
+            storage_backend = get_storage_backend()
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=500,
+                content=error_envelope(
+                    request,
+                    code="CONFIGURATION_ERROR",
+                    message=str(exc),
+                    details=None,
+                    retryable=False,
+                ),
+            )
+
+        if export_format == "json":
+            export_content = build_json_export(payload)
+        elif export_format == "csv":
+            export_content = build_csv_export(payload)
+        else:
+            export_content = build_xlsx_export(payload)
+        artifact_filename = f"{document_id}.{export_format}"
+        storage_uri = storage_backend.store_document(artifact_id, artifact_filename, export_content)
     created_by = request.headers.get("x-user-id", "local-user")
     created_at = datetime.now(timezone.utc)
 

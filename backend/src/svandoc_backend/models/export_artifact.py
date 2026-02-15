@@ -11,7 +11,7 @@ from svandoc_backend.db import Base
 class ExportArtifact(Base):
     __tablename__ = "export_artifacts"
     __table_args__ = (
-        CheckConstraint("format IN ('csv', 'xlsx', 'json')", name="ck_export_artifacts_format_valid"),
+        CheckConstraint("format IN ('csv', 'xlsx', 'json', 'gsheets')", name="ck_export_artifacts_format_valid"),
         Index("ix_export_artifacts_document_id", "document_id"),
         Index("ix_export_artifacts_created_at", "created_at"),
     )
@@ -32,4 +32,3 @@ class ExportArtifact(Base):
     )
 
     document = relationship("Document", back_populates="export_artifacts")
-
