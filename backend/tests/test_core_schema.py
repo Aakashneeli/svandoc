@@ -22,6 +22,7 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("extraction_results", table_names)
         self.assertIn("user_corrections", table_names)
         self.assertIn("export_artifacts", table_names)
+        self.assertIn("document_deletion_events", table_names)
 
     def test_documents_constraints_and_indexes_exist(self) -> None:
         unique_names = {item["name"] for item in self.inspector.get_unique_constraints("documents")}
@@ -74,6 +75,11 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("ix_export_artifacts_document_id", index_names)
         self.assertIn("ix_export_artifacts_created_at", index_names)
         self.assertTrue(any(fk["referred_table"] == "documents" for fk in foreign_keys))
+
+    def test_document_deletion_events_indexes_exist(self) -> None:
+        index_names = {item["name"] for item in self.inspector.get_indexes("document_deletion_events")}
+        self.assertIn("ix_document_deletion_events_document_id", index_names)
+        self.assertIn("ix_document_deletion_events_deleted_at", index_names)
 
 
 if __name__ == "__main__":

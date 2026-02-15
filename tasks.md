@@ -68,7 +68,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-048 | P0 | [DONE 2026-02-15] Add regression thresholds for extraction quality in CI | T-047 | CI fails when quality drops below agreed thresholds | Codex |
 | T-049 | P0 | [DONE 2026-02-15] Add integration tests for queue retries and failure states | T-019, T-020 | Retry and dead-letter behavior verified by tests | Codex |
 | T-050 | P1 | [DONE 2026-02-15] Add role-based authorization checks (Admin/Editor/Viewer) | T-012 | Protected endpoints enforce role checks with tests | Codex |
-| T-051 | P1 | Add document retention policy and hard-delete job | T-012 | Retention rules configurable and deletions auditable | Unassigned |
+| T-051 | P1 | [DONE 2026-02-15] Add document retention policy and hard-delete job | T-012 | Retention rules configurable and deletions auditable | Codex |
 | T-052 | P1 | Add structured logging sink and request correlation IDs | T-020 | Logs queryable by request and job IDs | Unassigned |
 | T-053 | P1 | Add metrics instrumentation (latency, queue depth, error rate) | T-020 | Metrics exposed and sampled in local dashboard | Unassigned |
 | T-054 | P1 | Define alert thresholds for repeated failures and backlog | T-053 | Alert rules documented and test-triggered once | Unassigned |

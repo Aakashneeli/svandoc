@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-050)
+Last updated: 2026-02-15 (updated after T-051)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -94,6 +94,7 @@ Completed:
 39. `T-048`: Quality regression thresholds enforced in CI via new quality gate module (`svandoc_backend.quality_gate`), CI baseline predictions fixture (`datasets/benchmark/v1/ci_predictions.json`), and GitHub Actions workflow (`.github/workflows/backend-quality-gate.yml`) that runs evaluator + threshold checks.
 40. `T-049`: Queue retry/dead-letter handling added in worker processing with bounded retry scheduling/backoff and dead-letter terminal failures, plus integration coverage for retryable timeout requeue and exhausted-retry dead-letter outcomes.
 41. `T-050`: Role-based authorization checks added for API endpoints with `admin`/`editor`/`viewer` policy enforcement (`x-user-role`) and explicit `403 FORBIDDEN` responses for invalid or unauthorized roles.
+42. `T-051`: Configurable document retention cleanup added with hard-delete execution and persisted audit trail (`document_deletion_events`), plus retention CLI wrapper (`backend/scripts/retention-cleanup.ps1`) and migration `20260215_0005`.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -103,10 +104,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-051` Add document retention policy and hard-delete job.
-2. `T-052` Add structured logging sink and request correlation IDs.
-3. `T-053` Add metrics instrumentation (latency, queue depth, error rate).
-4. `T-054` Define alert thresholds for repeated failures and backlog.
+1. `T-052` Add structured logging sink and request correlation IDs.
+2. `T-053` Add metrics instrumentation (latency, queue depth, error rate).
+3. `T-054` Define alert thresholds for repeated failures and backlog.
+4. `T-055` Add API rate limiting and abuse guardrails.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -207,6 +208,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 43. `T-048` quality-gate checks passed on `2026-02-15`: `backend/tests/test_quality_eval.py` and `backend/tests/test_quality_gate.py` passed, evaluator + threshold gate CLI run passed against `datasets/benchmark/v1/ci_predictions.json`, and full backend suite passed (`98` tests).
 44. `T-049` queue-retry/dead-letter checks passed on `2026-02-15`: `backend/tests/test_queueing.py` passed with retry/dead-letter scenarios, and full backend suite passed (`100` tests).
 45. `T-050` RBAC checks passed on `2026-02-15`: new `backend/tests/test_authorization.py` passed for `admin`/`editor`/`viewer` access controls, and full backend suite passed (`105` tests).
+46. `T-051` retention checks passed on `2026-02-15`: new migration `20260215_0005` applied in test runs, `backend/tests/test_retention_cleanup.py` passed for hard-delete + audit logging, and full backend suite passed (`107` tests).
 
 ## 11) Update Protocol For Future Sessions
 
