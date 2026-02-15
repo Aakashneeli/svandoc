@@ -18,6 +18,7 @@ from svandoc_backend import __version__
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.models.document import Document
+from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.queueing import enqueue_processing_job
 from svandoc_backend.storage import get_storage_backend
@@ -154,6 +155,56 @@ async def get_job_status(
                 if job.error_code or job.error_message
                 else None
             ),
+        },
+    )
+
+
+@app.get("/api/documents/{document_id}/extraction")
+async def get_document_extraction(
+    request: Request,
+    document_id: str,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    extraction = (
+        db.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    )
+    if extraction is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="EXTRACTION_NOT_FOUND",
+                message="Extraction result is not available for this document.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    return success_envelope(
+        request,
+        data={
+            "document_id": str(document.id),
+            "schema_version": str(extraction.schema_version),
+            "doc_type": str(extraction.doc_type),
+            "review_required": bool(extraction.is_review_required),
+            "raw_ocr_text": str(extraction.raw_ocr_text),
+            "structured_payload": extraction.structured_payload,
+            "confidence_map": extraction.confidence_map,
+            "created_at": _iso_timestamp(extraction.created_at),
+            "updated_at": _iso_timestamp(extraction.updated_at),
         },
     )
 

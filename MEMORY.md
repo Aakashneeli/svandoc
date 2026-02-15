@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-030)
+Last updated: 2026-02-15 (updated after T-031)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -74,6 +74,7 @@ Completed:
 19. `T-028`: normalization validation rules added for totals/date/currency consistency with actionable warnings and review-required escalation.
 20. `T-029`: extraction persistence finalized with canonical schema version (`1.0.0`) and synchronized review flags/confidence in DB rows.
 21. `T-030`: `GET /api/jobs/{job_id}` endpoint added with status/attempt/timestamps/error details and `JOB_NOT_FOUND` handling.
+22. `T-031`: `GET /api/documents/{id}/extraction` endpoint added with structured payload, confidence map, and explicit `DOCUMENT_NOT_FOUND`/`EXTRACTION_NOT_FOUND` handling.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -83,10 +84,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-031` Implement `GET /api/documents/{id}/extraction` endpoint.
-2. `T-032` Implement correction endpoint (`PATCH /extraction`).
-3. `T-033` Implement export service for `JSON`.
-4. `T-034` Implement export service for `CSV`.
+1. `T-032` Implement correction endpoint (`PATCH /extraction`).
+2. `T-033` Implement export service for `JSON`.
+3. `T-034` Implement export service for `CSV`.
+4. `T-035` Implement export service for `XLSX`.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -167,6 +168,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 23. `T-028` validation-rule tests and queue review-flag escalation passed with full backend suite (`70` tests) on `2026-02-15`.
 24. `T-029` extraction persistence assertions passed for schema version/review flag synchronization with full backend suite (`70` tests) on `2026-02-15`.
 25. `T-030` job status endpoint tests (success/failed/not-found) passed with full backend suite (`73` tests) on `2026-02-15`.
+26. `T-031` extraction endpoint tests (success/document-not-found/extraction-not-found) passed with full backend suite (`76` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 
