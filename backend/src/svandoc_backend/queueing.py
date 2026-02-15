@@ -11,6 +11,7 @@ from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
 
 from svandoc_backend.chandra_ocr import ChandraOCRAdapter
+from svandoc_backend.confidence import build_field_confidence_map
 from svandoc_backend.db import SessionLocal
 from svandoc_backend.dots_ocr import DotsOCRAdapter
 from svandoc_backend.job_state_machine import can_transition, transition_job_status
@@ -273,6 +274,12 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             structured_payload=extraction.structured_payload,
             review_required=extraction.review_required,
         )
+        confidence_summary = build_field_confidence_map(
+            doc_type="invoice",
+            normalized_payload=normalized_payload,
+            raw_confidence_map=extraction.confidence_map,
+        )
+        normalized_payload["confidence"] = confidence_summary
         _persist_extraction_result(
             session,
             document_id=document.id,
@@ -280,7 +287,7 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             model=extraction.model,
             raw_text=extraction.raw_text,
             structured_payload=normalized_payload,
-            confidence_map=extraction.confidence_map,
+            confidence_map=confidence_summary,
             review_required=extraction.review_required,
         )
         transition_job_status(job, "review_required" if extraction.review_required else "completed")
