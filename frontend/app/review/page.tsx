@@ -38,16 +38,25 @@ export default function ReviewPage() {
     csv: "idle",
     xlsx: "idle",
     gsheets: "idle",
+    gdrive: "idle",
+    onedrive: "idle",
+    dropbox: "idle",
   });
   const [exportMessageByFormat, setExportMessageByFormat] = useState<Record<ExportFormat, string>>({
     json: "",
     csv: "",
     xlsx: "",
     gsheets: "",
+    gdrive: "",
+    onedrive: "",
+    dropbox: "",
   });
   const [googleSpreadsheetId, setGoogleSpreadsheetId] = useState("");
   const [googleSheetName, setGoogleSheetName] = useState("Sheet1");
   const [googleAccessToken, setGoogleAccessToken] = useState("");
+  const [cloudAccessToken, setCloudAccessToken] = useState("");
+  const [cloudFolder, setCloudFolder] = useState("");
+  const [cloudFilename, setCloudFilename] = useState("");
   const [artifactsByFormat, setArtifactsByFormat] = useState<Partial<Record<ExportFormat, ExportArtifactData>>>({});
   const [audit, setAudit] = useState<DocumentAuditData | null>(null);
 
@@ -281,6 +290,21 @@ export default function ReviewPage() {
       options.google_spreadsheet_id = googleSpreadsheetId.trim();
       options.google_sheet_name = googleSheetName.trim() || "Sheet1";
       options.google_access_token = googleAccessToken.trim();
+    } else if (format === "gdrive" || format === "onedrive" || format === "dropbox") {
+      if (!cloudAccessToken.trim()) {
+        setExportMessageByFormat((current) => ({
+          ...current,
+          [format]: "Cloud OAuth access token is required.",
+        }));
+        return;
+      }
+      options.cloud_access_token = cloudAccessToken.trim();
+      if (cloudFolder.trim()) {
+        options.cloud_folder = cloudFolder.trim();
+      }
+      if (cloudFilename.trim()) {
+        options.cloud_filename = cloudFilename.trim();
+      }
     }
 
     setExportStateByFormat((current) => ({ ...current, [format]: "running" }));
@@ -440,7 +464,7 @@ export default function ReviewPage() {
 
               <div className="panel export-panel">
                 <h3>Export Actions</h3>
-                <p className="empty-note">Generate JSON, CSV, XLSX, or push directly to Google Sheets.</p>
+                <p className="empty-note">Generate exports or push directly to Google Sheets, Drive, OneDrive, and Dropbox.</p>
                 <div className="filter-grid">
                   <label className="field">
                     Google Spreadsheet ID
@@ -470,8 +494,37 @@ export default function ReviewPage() {
                     />
                   </label>
                 </div>
+                <div className="filter-grid">
+                  <label className="field">
+                    Cloud OAuth Access Token
+                    <input
+                      type="password"
+                      placeholder="token"
+                      value={cloudAccessToken}
+                      onChange={(event) => setCloudAccessToken(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Cloud Folder (optional)
+                    <input
+                      type="text"
+                      placeholder="svandoc-exports"
+                      value={cloudFolder}
+                      onChange={(event) => setCloudFolder(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Cloud Filename (optional)
+                    <input
+                      type="text"
+                      placeholder="document.json"
+                      value={cloudFilename}
+                      onChange={(event) => setCloudFilename(event.target.value)}
+                    />
+                  </label>
+                </div>
                 <div className="export-actions">
-                  {(["json", "csv", "xlsx", "gsheets"] as ExportFormat[]).map((format) => {
+                  {(["json", "csv", "xlsx", "gsheets", "gdrive", "onedrive", "dropbox"] as ExportFormat[]).map((format) => {
                     const artifact = artifactsByFormat[format];
                     const running = exportStateByFormat[format] === "running";
                     return (
@@ -522,7 +575,7 @@ export default function ReviewPage() {
                         {audit.exports.map((entry) => (
                           <li key={entry.id} className="upload-row">
                             <div className="upload-file">{entry.format.toUpperCase()}</div>
-                            <div className="upload-meta">{entry.created_by}</div>
+                            <div className="upload-meta">{entry.created_by} ({entry.delivery_status ?? "completed"})</div>
                             <div className="upload-message">{entry.created_at ?? "-"}</div>
                           </li>
                         ))}

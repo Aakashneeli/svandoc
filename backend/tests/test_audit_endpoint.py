@@ -79,6 +79,7 @@ class AuditEndpointTests(unittest.TestCase):
                     document_id=document_id,
                     format="csv",
                     storage_uri=str(self.test_dir / "artifact.csv"),
+                    delivery_status="completed",
                     created_by="editor-a",
                 )
             )
@@ -99,6 +100,7 @@ class AuditEndpointTests(unittest.TestCase):
         self.assertEqual(payload["corrections"][0]["corrected_by"], "editor-a")
         self.assertEqual(len(payload["exports"]), 1)
         self.assertEqual(payload["exports"][0]["format"], "csv")
+        self.assertEqual(payload["exports"][0]["delivery_status"], "completed")
         self.assertEqual(payload["exports"][0]["created_by"], "editor-a")
 
     def test_get_document_audit_returns_not_found_for_missing_document(self) -> None:

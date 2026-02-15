@@ -27,12 +27,15 @@ export type ExtractionPatchResponse = {
   review_required: boolean;
 };
 
-export type ExportFormat = "json" | "csv" | "xlsx" | "gsheets";
+export type ExportFormat = "json" | "csv" | "xlsx" | "gsheets" | "gdrive" | "onedrive" | "dropbox";
 
 export type ExportOptions = {
   google_spreadsheet_id?: string;
   google_sheet_name?: string;
   google_access_token?: string;
+  cloud_access_token?: string;
+  cloud_folder?: string;
+  cloud_filename?: string;
 };
 
 export type ExportArtifactData = {
@@ -40,6 +43,7 @@ export type ExportArtifactData = {
   document_id: string;
   format: ExportFormat;
   storage_uri: string;
+  delivery_status?: string;
   created_by: string;
   created_at: string;
 };
@@ -57,6 +61,7 @@ export type AuditExportData = {
   id: string;
   format: string;
   storage_uri: string;
+  delivery_status?: string;
   created_by: string;
   created_at: string | null;
 };

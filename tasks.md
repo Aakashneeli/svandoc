@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-062)
+Last updated: 2026-02-15 (through T-063)
 
 ## How to use this file
 
@@ -80,7 +80,7 @@ Last updated: 2026-02-15 (through T-062)
 | T-060 | P1 | [DONE 2026-02-15] Run pilot with 5 to 10 target users and collect workflow metrics | T-045 | Pilot report includes completion and time-to-value metrics | Codex |
 | T-061 | P1 | [DONE 2026-02-15] Prioritize beta feedback and create v1.1 hardening backlog | T-060 | Ranked backlog with impact/effort and owners | Codex |
 | T-062 | P2 | [DONE 2026-02-15] Implement Google Sheets direct export connector | T-036 | Users can push extraction results to a selected Sheet via OAuth flow | Codex |
-| T-063 | P2 | Implement cloud storage connectors (Google Drive, OneDrive, Dropbox) | T-036 | Export artifacts can be saved to each provider with status tracking | Unassigned |
+| T-063 | P2 | [DONE 2026-02-15] Implement cloud storage connectors (Google Drive, OneDrive, Dropbox) | T-036 | Export artifacts can be saved to each provider with status tracking | Codex |
 | T-064 | P2 | Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`) | T-030, T-036 | Signed webhooks delivered with retries and delivery logs | Unassigned |
 | T-065 | P2 | Build Zapier integration using webhook/API triggers and actions | T-064 | Zapier app supports trigger on completion and action to fetch results | Unassigned |
 | T-066 | P2 | Build Make.com integration templates and connection guide | T-064 | Make templates run end-to-end for upload and export workflows | Unassigned |

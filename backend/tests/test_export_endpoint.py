@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 from svandoc_backend.db import Base, get_db_session
 from svandoc_backend.main import app
+from svandoc_backend.cloud_connectors import CloudConnectorError, CloudUploadResult
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
@@ -187,6 +188,117 @@ class ExportEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         payload = response.json()
         self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_gdrive_persists_cloud_artifact(self) -> None:
+        document_id = "doc-export-gdrive"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.upload_to_google_drive") as mocked_upload:
+            mocked_upload.return_value = CloudUploadResult(
+                provider="gdrive",
+                remote_id="drive-file-1",
+                storage_uri="gdrive://drive-file-1",
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "gdrive",
+                    "cloud_access_token": "token-value",
+                    "cloud_folder": "folder-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "gdrive")
+        self.assertEqual(data["storage_uri"], "gdrive://drive-file-1")
+        self.assertEqual(data["delivery_status"], "completed")
+
+    def test_export_onedrive_persists_cloud_artifact(self) -> None:
+        document_id = "doc-export-onedrive"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.upload_to_onedrive") as mocked_upload:
+            mocked_upload.return_value = CloudUploadResult(
+                provider="onedrive",
+                remote_id="onedrive-file-1",
+                storage_uri="onedrive://onedrive-file-1",
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "onedrive",
+                    "cloud_access_token": "token-value",
+                    "cloud_folder": "svandoc",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["format"], "onedrive")
+        self.assertEqual(response.json()["data"]["delivery_status"], "completed")
+
+    def test_export_dropbox_persists_cloud_artifact(self) -> None:
+        document_id = "doc-export-dropbox"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.upload_to_dropbox") as mocked_upload:
+            mocked_upload.return_value = CloudUploadResult(
+                provider="dropbox",
+                remote_id="dropbox-file-1",
+                storage_uri="dropbox://dropbox-file-1",
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "dropbox",
+                    "cloud_access_token": "token-value",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["format"], "dropbox")
+        self.assertEqual(response.json()["data"]["delivery_status"], "completed")
+
+    def test_export_cloud_connector_failure_persists_failed_status(self) -> None:
+        document_id = "doc-export-cloud-failed"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.upload_to_google_drive") as mocked_upload:
+            mocked_upload.side_effect = CloudConnectorError("google_drive_upload_failed:403")
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "gdrive",
+                    "cloud_access_token": "token-value",
+                },
+            )
+
+        self.assertEqual(response.status_code, 502)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "EXPORT_DELIVERY_FAILED")
+        artifact_id = payload["error"]["details"]["artifact_id"]
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, artifact_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.delivery_status, "failed")
+        self.assertEqual(artifact.storage_uri, "failed://gdrive")
+
+    def test_export_cloud_connector_requires_access_token(self) -> None:
+        document_id = "doc-export-cloud-validation"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "onedrive"},
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
         self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
 
     def test_export_gsheets_persists_artifact_with_connector_uri(self) -> None:

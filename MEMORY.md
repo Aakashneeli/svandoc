@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-062)
+Last updated: 2026-02-15 (updated after T-063)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -106,6 +106,7 @@ Completed:
 51. `T-060`: Pilot workflow metrics package added with anonymized pilot cohort dataset (`datasets/pilot/v1/pilot_sessions.csv`), evaluator module/CLI (`svandoc_backend.pilot_metrics`, `backend/scripts/pilot-metrics.ps1`), and pilot outcome report (`docs/pilot-report-2026-02-15.md`) including completion and time-to-value metrics.
 52. `T-061`: Beta feedback prioritization workflow added with scored input dataset (`datasets/pilot/v1/feedback_items.json`), ranking module/CLI (`svandoc_backend.feedback_prioritization`, `backend/scripts/feedback-prioritize.ps1`), and ranked v1.1 hardening backlog (`docs/v1.1-hardening-backlog.md`) with impact/effort/frequency scoring and owners.
 53. `T-062`: Google Sheets direct export connector implemented end-to-end with backend connector service (`svandoc_backend.google_sheets_export`), export endpoint support (`format=gsheets` with OAuth token + spreadsheet target), schema migration `20260215_0006`, frontend review-page connector controls, and connector runbook (`docs/google-sheets-export.md`).
+54. `T-063`: Cloud storage connectors implemented for Google Drive, OneDrive, and Dropbox (`svandoc_backend.cloud_connectors`) with export endpoint support (`format=gdrive|onedrive|dropbox`), persisted delivery status tracking in `export_artifacts` (`delivery_status`), migration `20260215_0007`, review UI actions, and connector runbook (`docs/cloud-storage-connectors.md`).
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -115,10 +116,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-063` Implement cloud storage connectors (Google Drive, OneDrive, Dropbox).
-2. `T-064` Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`).
-3. `T-065` Build Zapier integration using webhook/API triggers and actions.
-4. `T-066` Build Make.com integration templates and connection guide.
+1. `T-064` Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`).
+2. `T-065` Build Zapier integration using webhook/API triggers and actions.
+3. `T-066` Build Make.com integration templates and connection guide.
+4. `T-067` Implement QuickBooks Online connector for invoice/receipt payload sync.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -231,6 +232,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 55. `T-060` pilot metrics checks passed on `2026-02-15`: `backend/tests/test_pilot_metrics.py` passed, `backend/scripts/pilot-metrics.ps1` produced `.local-sandbox/pilot-metrics.json` with completion rate `83.33%` and median time-to-value `410` seconds, and the report was captured in `docs/pilot-report-2026-02-15.md`.
 56. `T-061` feedback prioritization checks passed on `2026-02-15`: `backend/tests/test_feedback_prioritization.py` passed, `backend/scripts/feedback-prioritize.ps1` generated ranked output at `.local-sandbox/v1_1-hardening-backlog.json`, and v1.1 ranked backlog doc was finalized at `docs/v1.1-hardening-backlog.md`.
 57. `T-062` Google Sheets connector checks passed on `2026-02-15`: `backend/tests/test_google_sheets_export.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed; frontend `typecheck` and `test` passed with review export UI updates; migration validation reached `20260215_0006` head against SQLite dry-run database.
+58. `T-063` cloud connector checks passed on `2026-02-15`: `backend/tests/test_cloud_connectors.py`, `backend/tests/test_google_sheets_export.py`, `backend/tests/test_export_endpoint.py`, `backend/tests/test_audit_endpoint.py`, and `backend/tests/test_core_schema.py` passed; frontend `typecheck` and `test` passed; migration validation reached `20260215_0007` head against SQLite dry-run database.
 
 ## 11) Update Protocol For Future Sessions
 

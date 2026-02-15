@@ -11,7 +11,14 @@ from svandoc_backend.db import Base
 class ExportArtifact(Base):
     __tablename__ = "export_artifacts"
     __table_args__ = (
-        CheckConstraint("format IN ('csv', 'xlsx', 'json', 'gsheets')", name="ck_export_artifacts_format_valid"),
+        CheckConstraint(
+            "format IN ('csv', 'xlsx', 'json', 'gsheets', 'gdrive', 'onedrive', 'dropbox')",
+            name="ck_export_artifacts_format_valid",
+        ),
+        CheckConstraint(
+            "delivery_status IN ('pending', 'completed', 'failed')",
+            name="ck_export_artifacts_delivery_status_valid",
+        ),
         Index("ix_export_artifacts_document_id", "document_id"),
         Index("ix_export_artifacts_created_at", "created_at"),
     )
@@ -24,6 +31,7 @@ class ExportArtifact(Base):
     )
     format: Mapped[str] = mapped_column(String(16), nullable=False)
     storage_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    delivery_status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'completed'"))
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

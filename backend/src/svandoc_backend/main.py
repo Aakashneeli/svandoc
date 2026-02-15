@@ -23,6 +23,12 @@ from sqlalchemy.orm import Session
 from svandoc_backend import __version__
 from svandoc_backend.alerts import evaluate_alerts
 from svandoc_backend.auth import require_roles
+from svandoc_backend.cloud_connectors import (
+    CloudConnectorError,
+    upload_to_dropbox,
+    upload_to_google_drive,
+    upload_to_onedrive,
+)
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.export_service import (
@@ -191,6 +197,9 @@ class ExportRequest(BaseModel):
     google_spreadsheet_id: str | None = None
     google_sheet_name: str | None = None
     google_access_token: str | None = None
+    cloud_access_token: str | None = None
+    cloud_folder: str | None = None
+    cloud_filename: str | None = None
 
 
 def _iso_timestamp(value: datetime | None) -> str | None:
@@ -479,6 +488,7 @@ async def get_document_audit_log(
                     "id": str(artifact.id),
                     "format": str(artifact.format),
                     "storage_uri": str(artifact.storage_uri),
+                    "delivery_status": str(artifact.delivery_status),
                     "created_by": str(artifact.created_by),
                     "created_at": _iso_timestamp(artifact.created_at),
                 }
@@ -604,14 +614,15 @@ async def export_document(
         return auth_error
 
     export_format = _normalize_export_format(export_request.format)
-    if export_format not in {"json", "csv", "xlsx", "gsheets"}:
+    supported_formats = ["json", "csv", "xlsx", "gsheets", "gdrive", "onedrive", "dropbox"]
+    if export_format not in supported_formats:
         return JSONResponse(
             status_code=400,
             content=error_envelope(
                 request,
                 code="VALIDATION_ERROR",
                 message="Unsupported export format.",
-                details={"format": export_request.format, "supported_formats": ["json", "csv", "xlsx", "gsheets"]},
+                details={"format": export_request.format, "supported_formats": supported_formats},
                 retryable=False,
             ),
         )
@@ -646,6 +657,7 @@ async def export_document(
 
     payload = extraction.structured_payload
     artifact_id = str(uuid4())
+    delivery_status = "completed"
     if export_format == "gsheets":
         spreadsheet_id = (export_request.google_spreadsheet_id or "").strip()
         access_token = (export_request.google_access_token or "").strip()
@@ -687,6 +699,73 @@ async def export_document(
                 ),
             )
         storage_uri = f"gsheets://{connector_result.spreadsheet_id}/{connector_result.sheet_name}"
+    elif export_format in {"gdrive", "onedrive", "dropbox"}:
+        access_token = (export_request.cloud_access_token or "").strip()
+        if not access_token:
+            return JSONResponse(
+                status_code=400,
+                content=error_envelope(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="Cloud connector export requires OAuth access token.",
+                    details={"missing_fields": ["cloud_access_token"]},
+                    retryable=False,
+                ),
+            )
+        cloud_filename = (export_request.cloud_filename or "").strip() or f"{document_id}.json"
+        cloud_folder = (export_request.cloud_folder or "").strip()
+        export_content = build_json_export(payload)
+        try:
+            if export_format == "gdrive":
+                connector_result = upload_to_google_drive(
+                    access_token=access_token,
+                    filename=cloud_filename,
+                    content=export_content,
+                    mime_type="application/json",
+                    folder_id=cloud_folder or None,
+                )
+            elif export_format == "onedrive":
+                connector_result = upload_to_onedrive(
+                    access_token=access_token,
+                    filename=cloud_filename,
+                    content=export_content,
+                    folder_path=cloud_folder or "svandoc-exports",
+                )
+            else:
+                connector_result = upload_to_dropbox(
+                    access_token=access_token,
+                    filename=cloud_filename,
+                    content=export_content,
+                    folder_path=cloud_folder or "/svandoc-exports",
+                )
+        except CloudConnectorError as exc:
+            delivery_status = "failed"
+            storage_uri = f"failed://{export_format}"
+            created_by = request.headers.get("x-user-id", "local-user")
+            created_at = datetime.now(timezone.utc)
+            db.add(
+                ExportArtifact(
+                    id=artifact_id,
+                    document_id=document_id,
+                    format=export_format,
+                    storage_uri=storage_uri,
+                    delivery_status=delivery_status,
+                    created_by=created_by,
+                    created_at=created_at,
+                )
+            )
+            db.commit()
+            return JSONResponse(
+                status_code=502,
+                content=error_envelope(
+                    request,
+                    code="EXPORT_DELIVERY_FAILED",
+                    message="Cloud connector export failed.",
+                    details={"connector": export_format, "reason": str(exc), "artifact_id": artifact_id},
+                    retryable=True,
+                ),
+            )
+        storage_uri = connector_result.storage_uri
     else:
         try:
             storage_backend = get_storage_backend()
@@ -718,6 +797,7 @@ async def export_document(
         document_id=document_id,
         format=export_format,
         storage_uri=storage_uri,
+        delivery_status=delivery_status,
         created_by=created_by,
         created_at=created_at,
     )
@@ -731,6 +811,7 @@ async def export_document(
             "document_id": document_id,
             "format": export_format,
             "storage_uri": storage_uri,
+            "delivery_status": delivery_status,
             "created_by": created_by,
             "created_at": _iso_timestamp(created_at),
         },
