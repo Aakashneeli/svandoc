@@ -8,6 +8,7 @@ Last updated: 2026-02-15 (through T-105)
 - `Depends On`: task IDs that must be completed first.
 - `Owner`: placeholder to assign later.
 - `Definition of Done`: objective completion criteria.
+- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; execute `T-102` to `T-105` during deployment phase.
 
 ## Task Backlog
 

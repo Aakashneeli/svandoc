@@ -70,6 +70,7 @@ Next in strict order:
 1. `T-021` Implement image preprocessing (deskew, denoise, orientation).
 2. `T-022` Build vLLM client module with timeout/retry policies.
 3. `T-023` Integrate `dots.ocr` extraction adapter.
+4. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
 1. Implement in order.
