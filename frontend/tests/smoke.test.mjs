@@ -38,3 +38,12 @@ test("upload page supports single and batch file selectors", () => {
   assert.match(uploadPage, /Per-file status/);
   assert.match(uploadPage, /multiple/);
 });
+
+test("documents page includes search and filter controls", () => {
+  const documentsPage = readFileSync(new URL("../app/documents/page.tsx", import.meta.url), "utf8");
+  assert.match(documentsPage, /Search by vendor\/file metadata/);
+  assert.match(documentsPage, /Start date/);
+  assert.match(documentsPage, /End date/);
+  assert.match(documentsPage, /status/);
+  assert.match(documentsPage, /filterDocuments/);
+});
