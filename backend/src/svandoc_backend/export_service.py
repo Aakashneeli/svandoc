@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import json
+from io import StringIO
 from typing import Any
 
 
@@ -39,3 +41,177 @@ def build_json_export(payload: dict[str, Any]) -> bytes:
     # Stable key order keeps exports deterministic for downstream comparison and testing.
     rendered = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True)
     return rendered.encode("utf-8")
+
+
+def build_csv_export(payload: dict[str, Any]) -> bytes:
+    validate_canonical_payload(payload)
+    doc_type = str(payload.get("document_type", "")).strip().lower()
+    headers = _invoice_csv_headers() if doc_type == "invoice" else _receipt_csv_headers()
+    row = _build_invoice_csv_row(payload) if doc_type == "invoice" else _build_receipt_csv_row(payload)
+
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=headers, lineterminator="\n", extrasaction="ignore")
+    writer.writeheader()
+    writer.writerow(row)
+    return buffer.getvalue().encode("utf-8")
+
+
+def _invoice_csv_headers() -> list[str]:
+    return [
+        "document_id",
+        "source_file_name",
+        "page_count",
+        "schema_version",
+        "document_type",
+        "vendor_name",
+        "vendor_tax_id",
+        "vendor_address",
+        "vendor_email",
+        "customer_name",
+        "customer_address",
+        "invoice_number",
+        "issue_date",
+        "due_date",
+        "purchase_order_number",
+        "currency",
+        "subtotal",
+        "tax",
+        "shipping",
+        "discount",
+        "total",
+        "payment_terms",
+        "review_required",
+        "warning_count",
+        "line_item_count",
+        "line_items_json",
+        "confidence_overall",
+    ]
+
+
+def _receipt_csv_headers() -> list[str]:
+    return [
+        "document_id",
+        "source_file_name",
+        "page_count",
+        "schema_version",
+        "document_type",
+        "merchant_name",
+        "merchant_tax_id",
+        "merchant_address",
+        "merchant_phone",
+        "receipt_number",
+        "transaction_date",
+        "transaction_time",
+        "payment_method",
+        "currency",
+        "subtotal",
+        "tax",
+        "tip",
+        "total",
+        "review_required",
+        "warning_count",
+        "line_item_count",
+        "line_items_json",
+        "confidence_overall",
+    ]
+
+
+def _build_invoice_csv_row(payload: dict[str, Any]) -> dict[str, str]:
+    metadata = _dict_value(payload, "metadata")
+    vendor = _dict_value(payload, "vendor")
+    customer = _dict_value(payload, "customer")
+    invoice = _dict_value(payload, "invoice")
+    amounts = _dict_value(payload, "amounts")
+    confidence = _dict_value(payload, "confidence")
+    warnings = payload.get("warnings")
+    line_items = payload.get("line_items")
+
+    return {
+        "document_id": _to_csv_scalar(metadata.get("document_id")),
+        "source_file_name": _to_csv_scalar(metadata.get("source_file_name")),
+        "page_count": _to_csv_scalar(metadata.get("page_count")),
+        "schema_version": _to_csv_scalar(payload.get("schema_version")),
+        "document_type": _to_csv_scalar(payload.get("document_type")),
+        "vendor_name": _to_csv_scalar(vendor.get("name")),
+        "vendor_tax_id": _to_csv_scalar(vendor.get("tax_id")),
+        "vendor_address": _to_csv_scalar(vendor.get("address")),
+        "vendor_email": _to_csv_scalar(vendor.get("email")),
+        "customer_name": _to_csv_scalar(customer.get("name")),
+        "customer_address": _to_csv_scalar(customer.get("address")),
+        "invoice_number": _to_csv_scalar(invoice.get("invoice_number")),
+        "issue_date": _to_csv_scalar(invoice.get("issue_date")),
+        "due_date": _to_csv_scalar(invoice.get("due_date")),
+        "purchase_order_number": _to_csv_scalar(invoice.get("purchase_order_number")),
+        "currency": _to_csv_scalar(amounts.get("currency")),
+        "subtotal": _to_csv_scalar(amounts.get("subtotal")),
+        "tax": _to_csv_scalar(amounts.get("tax")),
+        "shipping": _to_csv_scalar(amounts.get("shipping")),
+        "discount": _to_csv_scalar(amounts.get("discount")),
+        "total": _to_csv_scalar(amounts.get("total")),
+        "payment_terms": _to_csv_scalar(payload.get("payment_terms")),
+        "review_required": _to_csv_scalar(payload.get("review_required")),
+        "warning_count": _to_csv_scalar(len(warnings) if isinstance(warnings, list) else 0),
+        "line_item_count": _to_csv_scalar(len(line_items) if isinstance(line_items, list) else 0),
+        "line_items_json": _to_csv_json(line_items if isinstance(line_items, list) else []),
+        "confidence_overall": _to_csv_scalar(confidence.get("overall")),
+    }
+
+
+def _build_receipt_csv_row(payload: dict[str, Any]) -> dict[str, str]:
+    metadata = _dict_value(payload, "metadata")
+    merchant = _dict_value(payload, "merchant")
+    receipt = _dict_value(payload, "receipt")
+    amounts = _dict_value(payload, "amounts")
+    confidence = _dict_value(payload, "confidence")
+    warnings = payload.get("warnings")
+    line_items = payload.get("line_items")
+
+    return {
+        "document_id": _to_csv_scalar(metadata.get("document_id")),
+        "source_file_name": _to_csv_scalar(metadata.get("source_file_name")),
+        "page_count": _to_csv_scalar(metadata.get("page_count")),
+        "schema_version": _to_csv_scalar(payload.get("schema_version")),
+        "document_type": _to_csv_scalar(payload.get("document_type")),
+        "merchant_name": _to_csv_scalar(merchant.get("name")),
+        "merchant_tax_id": _to_csv_scalar(merchant.get("tax_id")),
+        "merchant_address": _to_csv_scalar(merchant.get("address")),
+        "merchant_phone": _to_csv_scalar(merchant.get("phone")),
+        "receipt_number": _to_csv_scalar(receipt.get("receipt_number")),
+        "transaction_date": _to_csv_scalar(receipt.get("transaction_date")),
+        "transaction_time": _to_csv_scalar(receipt.get("transaction_time")),
+        "payment_method": _to_csv_scalar(receipt.get("payment_method")),
+        "currency": _to_csv_scalar(amounts.get("currency")),
+        "subtotal": _to_csv_scalar(amounts.get("subtotal")),
+        "tax": _to_csv_scalar(amounts.get("tax")),
+        "tip": _to_csv_scalar(amounts.get("tip")),
+        "total": _to_csv_scalar(amounts.get("total")),
+        "review_required": _to_csv_scalar(payload.get("review_required")),
+        "warning_count": _to_csv_scalar(len(warnings) if isinstance(warnings, list) else 0),
+        "line_item_count": _to_csv_scalar(len(line_items) if isinstance(line_items, list) else 0),
+        "line_items_json": _to_csv_json(line_items if isinstance(line_items, list) else []),
+        "confidence_overall": _to_csv_scalar(confidence.get("overall")),
+    }
+
+
+def _dict_value(payload: dict[str, Any], key: str) -> dict[str, Any]:
+    value = payload.get(key)
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
+def _to_csv_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _to_csv_scalar(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        text = f"{value:.6f}".rstrip("0").rstrip(".")
+        return text if text else "0"
+    return str(value)

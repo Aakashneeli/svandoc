@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-033)
+Last updated: 2026-02-15 (updated after T-034)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -77,6 +77,7 @@ Completed:
 22. `T-031`: `GET /api/documents/{id}/extraction` endpoint added with structured payload, confidence map, and explicit `DOCUMENT_NOT_FOUND`/`EXTRACTION_NOT_FOUND` handling.
 23. `T-032`: `PATCH /api/documents/{id}/extraction` endpoint added with strict field-path updates, correction audit persistence (`user_corrections`), and actor/timestamp tracking.
 24. `T-033`: JSON export service added with canonical payload validation and deterministic JSON output generation.
+25. `T-034`: CSV export service added with deterministic header ordering and stable value serialization for invoice/receipt canonical payloads.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -86,10 +87,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-034` Implement export service for `CSV`.
-2. `T-035` Implement export service for `XLSX`.
-3. `T-036` Implement export endpoint (`POST /export`).
-4. `T-037` Bootstrap Next.js app shell with auth-ready layout.
+1. `T-035` Implement export service for `XLSX`.
+2. `T-036` Implement export endpoint (`POST /export`).
+3. `T-037` Bootstrap Next.js app shell with auth-ready layout.
+4. `T-038` Build upload page with single and batch upload UX.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -173,6 +174,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 26. `T-031` extraction endpoint tests (success/document-not-found/extraction-not-found) passed with full backend suite (`76` tests) on `2026-02-15`.
 27. `T-032` correction endpoint tests (success/not-found/invalid-path validation + audit persistence checks) passed with full backend suite (`80` tests) on `2026-02-15`.
 28. `T-033` JSON export service tests (canonical output + invalid payload rejection) passed with full backend suite (`82` tests) on `2026-02-15`.
+29. `T-034` CSV export service tests (deterministic headers/values + invalid payload rejection) passed with full backend suite (`84` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 

@@ -51,7 +51,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-031 | P0 | [DONE 2026-02-15] Implement `GET /api/documents/{id}/extraction` endpoint | T-029 | Endpoint returns extraction payload and confidence map | Codex |
 | T-032 | P0 | [DONE 2026-02-15] Implement correction endpoint (`PATCH /extraction`) | T-031, T-013 | Corrections persist with actor and timestamp | Codex |
 | T-033 | P0 | [DONE 2026-02-15] Implement export service for `JSON` | T-031 | JSON export output matches canonical schema | Codex |
-| T-034 | P0 | Implement export service for `CSV` | T-033 | CSV headers and values are deterministic and tested | Unassigned |
+| T-034 | P0 | [DONE 2026-02-15] Implement export service for `CSV` | T-033 | CSV headers and values are deterministic and tested | Codex |
 | T-035 | P0 | Implement export service for `XLSX` | T-033 | XLSX opens in Excel and preserves numeric/date fields | Unassigned |
 | T-036 | P0 | Implement export endpoint (`POST /api/documents/{id}/export`) | T-034, T-035, T-013 | Export artifact metadata is persisted and downloadable | Unassigned |
 | T-037 | P0 | Bootstrap Next.js app shell with auth-ready layout | T-003 | Base routes and navigation load successfully | Unassigned |
