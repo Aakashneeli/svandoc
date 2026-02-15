@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
+from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from redis import Redis
 from redis.exceptions import RedisError
@@ -20,6 +23,7 @@ from svandoc_backend.envelope import error_envelope, request_id_from_request, su
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
+from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.queueing import enqueue_processing_job
 from svandoc_backend.storage import get_storage_backend
 from svandoc_backend.uploads import (
@@ -35,12 +39,65 @@ app = FastAPI(
 )
 
 
+class CorrectionInput(BaseModel):
+    field_path: str = Field(..., min_length=1)
+    new_value: Any
+
+
+class ExtractionCorrectionRequest(BaseModel):
+    corrections: list[CorrectionInput] = Field(..., min_length=1)
+
+
 def _iso_timestamp(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_field_token(token: str) -> str | int:
+    if token.isdigit():
+        return int(token)
+    return token
+
+
+def _get_path_value(payload: Any, field_path: str) -> tuple[bool, Any]:
+    current = payload
+    for token in field_path.split("."):
+        parsed = _parse_field_token(token)
+        if isinstance(parsed, int):
+            if not isinstance(current, list) or parsed < 0 or parsed >= len(current):
+                return False, None
+            current = current[parsed]
+            continue
+        if not isinstance(current, dict) or parsed not in current:
+            return False, None
+        current = current[parsed]
+    return True, current
+
+
+def _set_path_value(payload: Any, field_path: str, value: Any) -> bool:
+    current = payload
+    tokens = field_path.split(".")
+    for index, token in enumerate(tokens):
+        is_last = index == len(tokens) - 1
+        parsed = _parse_field_token(token)
+        if isinstance(parsed, int):
+            if not isinstance(current, list) or parsed < 0 or parsed >= len(current):
+                return False
+            if is_last:
+                current[parsed] = value
+                return True
+            current = current[parsed]
+            continue
+        if not isinstance(current, dict) or parsed not in current:
+            return False
+        if is_last:
+            current[parsed] = value
+            return True
+        current = current[parsed]
+    return False
 
 
 def queue_backend_mode() -> str:
@@ -205,6 +262,106 @@ async def get_document_extraction(
             "confidence_map": extraction.confidence_map,
             "created_at": _iso_timestamp(extraction.created_at),
             "updated_at": _iso_timestamp(extraction.updated_at),
+        },
+    )
+
+
+@app.patch("/api/documents/{document_id}/extraction")
+async def patch_document_extraction(
+    request: Request,
+    document_id: str,
+    correction_request: ExtractionCorrectionRequest,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    extraction = (
+        db.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    )
+    if extraction is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="EXTRACTION_NOT_FOUND",
+                message="Extraction result is not available for this document.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    updated_payload = deepcopy(extraction.structured_payload)
+    corrections: list[dict[str, Any]] = []
+    invalid_paths: list[str] = []
+
+    for correction in correction_request.corrections:
+        exists, old_value = _get_path_value(updated_payload, correction.field_path)
+        if not exists:
+            invalid_paths.append(correction.field_path)
+            continue
+        if not _set_path_value(updated_payload, correction.field_path, correction.new_value):
+            invalid_paths.append(correction.field_path)
+            continue
+        corrections.append(
+            {
+                "field_path": correction.field_path,
+                "old_value": old_value,
+                "new_value": correction.new_value,
+            }
+        )
+
+    if invalid_paths:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="One or more correction paths are invalid.",
+                details={"invalid_field_paths": invalid_paths},
+                retryable=False,
+            ),
+        )
+
+    corrected_by = request.headers.get("x-user-id", "local-user")
+    correction_time = datetime.now(timezone.utc)
+    for correction in corrections:
+        db.add(
+            UserCorrection(
+                id=str(uuid4()),
+                document_id=document_id,
+                field_path=str(correction["field_path"]),
+                old_value=correction["old_value"],
+                new_value=correction["new_value"],
+                corrected_by=corrected_by,
+                corrected_at=correction_time,
+            )
+        )
+
+    extraction.structured_payload = updated_payload
+    extraction.updated_at = correction_time
+    db.commit()
+
+    return success_envelope(
+        request,
+        data={
+            "document_id": document_id,
+            "correction_count": len(corrections),
+            "corrected_by": corrected_by,
+            "corrected_at": _iso_timestamp(correction_time),
+            "structured_payload": extraction.structured_payload,
+            "confidence_map": extraction.confidence_map,
+            "review_required": bool(extraction.is_review_required),
         },
     )
 

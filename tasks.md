@@ -49,7 +49,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-029 | P0 | [DONE 2026-02-15] Persist extraction results and review flags | T-026, T-027, T-028 | DB row saved with schema version and status flags | Codex |
 | T-030 | P0 | [DONE 2026-02-15] Implement `GET /api/jobs/{job_id}` endpoint | T-019 | Endpoint returns current status and error details | Codex |
 | T-031 | P0 | [DONE 2026-02-15] Implement `GET /api/documents/{id}/extraction` endpoint | T-029 | Endpoint returns extraction payload and confidence map | Codex |
-| T-032 | P0 | Implement correction endpoint (`PATCH /extraction`) | T-031, T-013 | Corrections persist with actor and timestamp | Unassigned |
+| T-032 | P0 | [DONE 2026-02-15] Implement correction endpoint (`PATCH /extraction`) | T-031, T-013 | Corrections persist with actor and timestamp | Codex |
 | T-033 | P0 | Implement export service for `JSON` | T-031 | JSON export output matches canonical schema | Unassigned |
 | T-034 | P0 | Implement export service for `CSV` | T-033 | CSV headers and values are deterministic and tested | Unassigned |
 | T-035 | P0 | Implement export service for `XLSX` | T-033 | XLSX opens in Excel and preserves numeric/date fields | Unassigned |
