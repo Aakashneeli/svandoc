@@ -153,3 +153,18 @@ Inference smoke validation command:
 powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1
 ```
 
+## 8. Staging Profile (Managed Supabase + Redis)
+
+For staging profile-based startup (no code changes):
+
+1. Copy `.env.staging.example` to `.env.staging`.
+2. Set real `DATABASE_URL` and `REDIS_URL` for managed services.
+3. Set PowerShell env var before startup:
+
+```powershell
+$env:APP_ENV="staging"
+powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+When `APP_ENV=staging`, startup scripts load base `.env` values and overlay values from `.env.staging` (or `.env.staging.example` if `.env.staging` is not present).
+
