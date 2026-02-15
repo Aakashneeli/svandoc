@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-105)
+Last updated: 2026-02-15 (through T-110)
 
 ## How to use this file
 
@@ -8,7 +8,7 @@ Last updated: 2026-02-15 (through T-105)
 - `Depends On`: task IDs that must be completed first.
 - `Owner`: placeholder to assign later.
 - `Definition of Done`: objective completion criteria.
-- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; execute `T-102` to `T-105` during deployment phase.
+- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; complete `T-106` to `T-109` before `T-025`; execute `T-102` to `T-105` during deployment phase.
 
 ## Task Backlog
 
@@ -38,7 +38,11 @@ Last updated: 2026-02-15 (through T-105)
 | T-022 | P0 | [DONE 2026-02-15] Build vLLM client module with timeout/retry policies | T-020 | Client handles transient failures and metrics hooks | Codex |
 | T-023 | P0 | [DONE 2026-02-15] Integrate `dots.ocr` extraction adapter | T-022 | End-to-end extraction works for baseline samples | Codex |
 | T-024 | P0 | [DONE 2026-02-15] Integrate `Chandra` fallback extraction adapter | T-022 | Fallback path callable and tested on hard samples | Codex |
-| T-025 | P0 | Implement routing rules from `dots.ocr` to fallback | T-023, T-024 | Routing triggers based on confidence/layout thresholds | Unassigned |
+| T-106 | P0 | [DONE 2026-02-15] Pin canonical OCR model IDs and environment contract for dual-endpoint inference | T-022, T-024 | `docs/local-setup.md` and `.env.example` define canonical IDs (`FL33TW00D-HF/dots.ocr`, `datalab-to/chandra`) and endpoint vars (`VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`) with clear defaults/notes | Codex |
+| T-107 | P0 | Implement backend support for fallback inference endpoint selection | T-106, T-022, T-024 | Runtime selects primary vs fallback base URL by model path; fallback client path covered by unit tests and structured failure handling | Unassigned |
+| T-108 | P0 | Add local model provisioning runbook for Hugging Face + dual vLLM servers | T-106, T-107 | Runbook includes HF auth, model pull/serve commands, GPU/VRAM guidance, cache paths, and troubleshooting for both models | Unassigned |
+| T-109 | P0 | Add inference smoke validation for `dots.ocr` and `chandra` endpoints | T-107, T-108 | Validation script/checklist confirms both endpoints reachable and one successful inference call per model with evidence output | Unassigned |
+| T-025 | P0 | Implement routing rules from `dots.ocr` to fallback | T-023, T-024, T-109 | Routing triggers based on confidence/layout thresholds | Unassigned |
 | T-026 | P0 | Normalize raw OCR output into canonical schema | T-023, T-024, T-002 | Normalization handles required schema fields | Unassigned |
 | T-027 | P0 | Implement field-level confidence scoring map | T-026 | Confidence values emitted for all extractable fields | Unassigned |
 | T-028 | P0 | Add validation rules (total math, date formats, currency consistency) | T-026 | Invalid fields flagged with actionable messages | Unassigned |
@@ -136,6 +140,7 @@ Last updated: 2026-02-15 (through T-105)
 | M10 Guided Template Export | T-085 to T-093 |
 | M11 Advanced Personalization | T-094 to T-097 |
 | M12 Managed Deploy Foundation | T-098 to T-105 |
+| M13 Inference Provisioning | T-106 to T-109 |
 
 ## MVP Exit Checklist
 

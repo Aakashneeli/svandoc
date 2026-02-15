@@ -48,3 +48,11 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 1. Set `DATABASE_URL` to the Supabase Postgres URI (`sslmode=require`).
 2. Migration command: `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1`.
 3. Verify migration revision: `myvenv\Scripts\python.exe -m alembic -c backend\alembic.ini current`.
+
+## Inference Notes
+
+1. Primary OCR endpoint: `VLLM_BASE_URL` and model `OCR_DEFAULT_MODEL`.
+2. Fallback OCR endpoint: `VLLM_FALLBACK_BASE_URL` and model `OCR_FALLBACK_MODEL`.
+3. Canonical upstream model IDs:
+   - `FL33TW00D-HF/dots.ocr`
+   - `datalab-to/chandra`
