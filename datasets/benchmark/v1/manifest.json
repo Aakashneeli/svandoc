@@ -1,0 +1,85 @@
+{
+  "dataset": "svandoc-benchmark",
+  "version": "v1",
+  "description": "Synthetic invoice/receipt benchmark set for extraction regression checks.",
+  "required_variants": [
+    "clean",
+    "noisy",
+    "rotated",
+    "multilayout"
+  ],
+  "samples": [
+    {
+      "id": "invoice_clean_001",
+      "png_path": "datasets/benchmark/v1/samples/invoice_clean_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/invoice_clean_001.pdf",
+      "png_sha256": "e41b597ad4fb8ec0277e0b700059c86e641a312ddc2e860a95b576b8a2d5e00f",
+      "pdf_sha256": "c5a7f755b1aa511559eb790b0f80e3accbbc57ae9a8095d861728a2f5e8e52f4",
+      "doc_type": "invoice",
+      "variant": "clean"
+    },
+    {
+      "id": "invoice_noisy_001",
+      "png_path": "datasets/benchmark/v1/samples/invoice_noisy_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/invoice_noisy_001.pdf",
+      "png_sha256": "5e21f2054f506adca50d6819948160ab1d4e19cf30e5623548b5941b85266a46",
+      "pdf_sha256": "5e50202112bdf916f2647b4b32974461f78a3b164931f595e1be1ee6e80c292c",
+      "doc_type": "invoice",
+      "variant": "noisy"
+    },
+    {
+      "id": "invoice_rotated_001",
+      "png_path": "datasets/benchmark/v1/samples/invoice_rotated_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/invoice_rotated_001.pdf",
+      "png_sha256": "13d05f31296655a2fdc7d442822ce4d69e8c4ff38b8db4c5a7bf291ee0d63276",
+      "pdf_sha256": "013b3fbcf20aff989b83fa3a7fb42e757fd59f214dac654980c0b814ba8f10dc",
+      "doc_type": "invoice",
+      "variant": "rotated"
+    },
+    {
+      "id": "invoice_multilayout_001",
+      "png_path": "datasets/benchmark/v1/samples/invoice_multilayout_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/invoice_multilayout_001.pdf",
+      "png_sha256": "9a7ec5b9298298554fbc38495f958f042e0cc3aba303e05728e5c193e3f3de35",
+      "pdf_sha256": "6a749a5cdd71d6467e0003abb68a73379329578aeb59096df9f9f4af11322171",
+      "doc_type": "invoice",
+      "variant": "multilayout"
+    },
+    {
+      "id": "receipt_clean_001",
+      "png_path": "datasets/benchmark/v1/samples/receipt_clean_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/receipt_clean_001.pdf",
+      "png_sha256": "6b44af14ee9ed6e51a467542c5268224444cd528e4f99d6d316385821149c3b4",
+      "pdf_sha256": "2a47a42a7814c00032d40deb920eac2c89de81dbbfa620e4444d6a3f90d32510",
+      "doc_type": "receipt",
+      "variant": "clean"
+    },
+    {
+      "id": "receipt_noisy_001",
+      "png_path": "datasets/benchmark/v1/samples/receipt_noisy_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/receipt_noisy_001.pdf",
+      "png_sha256": "029ab71ce2a7cc58037cb17faef2a0ce8cde5acdfe8092fe0edfbadd7d69405f",
+      "pdf_sha256": "98130c248880ef465d2540213ec2d282643461cbb558b813c5a3ccce49208031",
+      "doc_type": "receipt",
+      "variant": "noisy"
+    },
+    {
+      "id": "receipt_rotated_001",
+      "png_path": "datasets/benchmark/v1/samples/receipt_rotated_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/receipt_rotated_001.pdf",
+      "png_sha256": "d3732077d13289a6b2476842b41337d351a54470973ffe8bde97face8b4e15b2",
+      "pdf_sha256": "a478f4c5ae89d978bf0393521be2cf6ddd5940d78d3f1c4586ceea60835a49f8",
+      "doc_type": "receipt",
+      "variant": "rotated"
+    },
+    {
+      "id": "receipt_multilayout_001",
+      "png_path": "datasets/benchmark/v1/samples/receipt_multilayout_001.png",
+      "pdf_path": "datasets/benchmark/v1/samples/receipt_multilayout_001.pdf",
+      "png_sha256": "04831096e7eefbb188fb3936dd7937c6a2372c0094d01e6f3e01f339f77f6e9c",
+      "pdf_sha256": "01df4c4ff407d1248e87baba05b973b0290ec7c4cea99f0564ec2330389d4f46",
+      "doc_type": "receipt",
+      "variant": "multilayout"
+    }
+  ]
+}

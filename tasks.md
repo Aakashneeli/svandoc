@@ -63,7 +63,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-043 | P0 | [DONE 2026-02-15] Implement export UI actions for JSON/CSV/XLSX | T-040, T-036 | Users can trigger and download all MVP formats | Codex |
 | T-044 | P0 | [DONE 2026-02-15] Add frontend validation hints and error banners | T-038, T-040 | API and validation errors are understandable for users | Codex |
 | T-045 | P0 | [DONE 2026-02-15] Build end-to-end smoke test: upload -> review -> export | T-043 | Automated smoke test passes on local stack | Codex |
-| T-046 | P0 | Curate benchmark dataset (invoice + receipt variants) | T-001 | Dataset includes clean/noisy/rotated/multi-layout samples | Unassigned |
+| T-046 | P0 | [DONE 2026-02-15] Curate benchmark dataset (invoice + receipt variants) | T-001 | Dataset includes clean/noisy/rotated/multi-layout samples | Codex |
 | T-047 | P0 | Implement extraction quality evaluation script | T-046, T-026 | Script outputs precision/recall by field and document type | Unassigned |
 | T-048 | P0 | Add regression thresholds for extraction quality in CI | T-047 | CI fails when quality drops below agreed thresholds | Unassigned |
 | T-049 | P0 | Add integration tests for queue retries and failure states | T-019, T-020 | Retry and dead-letter behavior verified by tests | Unassigned |
