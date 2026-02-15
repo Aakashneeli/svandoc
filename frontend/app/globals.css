@@ -101,6 +101,15 @@ a {
   color: var(--muted);
 }
 
+.hint-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  color: #4d5867;
+  font-size: 0.86rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
 .chip-row {
   margin-top: 1rem;
   display: flex;
@@ -345,6 +354,21 @@ a {
   color: #9d2b2b;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.alert-banner {
+  margin: 0.75rem 0 0;
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.alert-error {
+  color: #8e2424;
+  background: #fdecec;
+  border-color: #efbaba;
 }
 
 .inline-edit-list {

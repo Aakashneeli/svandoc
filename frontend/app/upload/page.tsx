@@ -1,13 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createUploadQueue, type UploadQueueItem, updateUploadItem } from "../../src/upload";
+import {
+  createUploadQueue,
+  getUploadFailureMessage,
+  type UploadApiResponse,
+  type UploadQueueItem,
+  updateUploadItem,
+} from "../../src/upload";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export default function UploadPage() {
   const [queue, setQueue] = useState<UploadQueueItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [errorBanner, setErrorBanner] = useState("");
 
   const queuedCount = useMemo(
     () => queue.filter((item) => item.status === "queued" || item.status === "failed").length,
@@ -32,16 +39,18 @@ export default function UploadPage() {
         method: "POST",
         body: form,
       });
-      const payload = (await response.json()) as { error?: { message?: string } };
+      const payload = (await response.json()) as UploadApiResponse;
       if (!response.ok) {
-        const message = payload.error?.message ?? "Upload failed";
+        const message = getUploadFailureMessage(payload, item.file.name);
         setQueue((current) => updateUploadItem(current, item.id, "failed", message));
+        setErrorBanner(`Upload error for ${item.file.name}: ${message}`);
         return;
       }
       setQueue((current) => updateUploadItem(current, item.id, "completed", "Uploaded"));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Network error";
       setQueue((current) => updateUploadItem(current, item.id, "failed", message));
+      setErrorBanner(`Upload error for ${item.file.name}: ${message}`);
     }
   }
 
@@ -49,6 +58,7 @@ export default function UploadPage() {
     if (isUploading || queuedCount === 0) {
       return;
     }
+    setErrorBanner("");
     setIsUploading(true);
     const snapshot = [...queue];
     for (const item of snapshot) {
@@ -66,6 +76,11 @@ export default function UploadPage() {
       <div className="hero">
         <h1>Upload</h1>
         <p>Select one file or a batch. Each file tracks its own status through the upload flow.</p>
+        <ul className="hint-list">
+          <li>Accepted file types: PDF, PNG, JPG/JPEG, TIFF, HEIC.</li>
+          <li>Validation checks file type, size, and page count before processing.</li>
+          <li>Correct invalid files and retry failed rows directly from this page.</li>
+        </ul>
         <div className="upload-actions">
           <label className="button-like">
             Add Single File
@@ -90,6 +105,7 @@ export default function UploadPage() {
             {isUploading ? "Uploading..." : `Upload ${queuedCount} File${queuedCount === 1 ? "" : "s"}`}
           </button>
         </div>
+        {errorBanner ? <p className="alert-banner alert-error">{errorBanner}</p> : null}
       </div>
 
       <div className="panel">

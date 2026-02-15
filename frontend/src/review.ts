@@ -39,7 +39,9 @@ export type ExportArtifactData = {
 };
 
 type EnvelopeError = {
+  code?: string;
   message?: string;
+  details?: Record<string, unknown>;
 };
 
 type EnvelopeResponse<TData> = {
@@ -56,7 +58,7 @@ export async function fetchDocumentExtraction(
   });
   const payload = (await response.json()) as EnvelopeResponse<ExtractionData>;
   if (!response.ok || !payload.data) {
-    throw new Error(payload.error?.message ?? "Unable to load extraction.");
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to load extraction."));
   }
   return payload.data;
 }
@@ -75,7 +77,7 @@ export async function patchDocumentExtraction(
   });
   const payload = (await response.json()) as EnvelopeResponse<ExtractionPatchResponse>;
   if (!response.ok || !payload.data) {
-    throw new Error(payload.error?.message ?? "Unable to save correction.");
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to save correction."));
   }
   return payload.data;
 }
@@ -94,7 +96,7 @@ export async function requestDocumentExport(
   });
   const payload = (await response.json()) as EnvelopeResponse<ExportArtifactData>;
   if (!response.ok || !payload.data) {
-    throw new Error(payload.error?.message ?? "Unable to create export artifact.");
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to create export artifact."));
   }
   return payload.data;
 }
@@ -153,4 +155,20 @@ export function confidenceForPath(
     return null;
   }
   return value;
+}
+
+function buildUserFacingApiError(error: EnvelopeError | undefined, fallback: string): string {
+  if (!error) {
+    return fallback;
+  }
+  if (error.code === "VALIDATION_ERROR") {
+    const invalidPaths = error.details?.invalid_field_paths;
+    if (Array.isArray(invalidPaths) && invalidPaths.length > 0) {
+      const values = invalidPaths.filter((item): item is string => typeof item === "string");
+      if (values.length > 0) {
+        return `Validation failed for fields: ${values.join(", ")}`;
+      }
+    }
+  }
+  return error.message ?? fallback;
 }

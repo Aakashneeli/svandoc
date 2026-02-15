@@ -267,6 +267,11 @@ export default function ReviewPage() {
       <div className="hero">
         <h1>Review</h1>
         <p>Load a document to inspect source and extraction output side-by-side.</p>
+        <ul className="hint-list">
+          <li>Load by document ID to fetch extraction data from the API.</li>
+          <li>Field saves validate path and payload; invalid edits return actionable API messages.</li>
+          <li>Run export actions after review to generate JSON, CSV, or XLSX artifacts.</li>
+        </ul>
         <div className="review-controls">
           <label className="field">
             Document ID
@@ -290,7 +295,7 @@ export default function ReviewPage() {
             {isLoading ? "Loading..." : "Load Review"}
           </button>
         </div>
-        {errorMessage ? <p className="review-error">{errorMessage}</p> : null}
+        {errorMessage ? <p className="alert-banner alert-error">{errorMessage}</p> : null}
       </div>
 
       <div className="review-grid">

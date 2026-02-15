@@ -37,6 +37,9 @@ test("upload page supports single and batch file selectors", () => {
   assert.match(uploadPage, /Add Batch/);
   assert.match(uploadPage, /Per-file status/);
   assert.match(uploadPage, /multiple/);
+  assert.match(uploadPage, /Accepted file types/);
+  assert.match(uploadPage, /errorBanner/);
+  assert.match(uploadPage, /getUploadFailureMessage/);
 });
 
 test("documents page includes search and filter controls", () => {
@@ -65,4 +68,6 @@ test("review page renders side-by-side review and extraction loading", () => {
   assert.match(reviewPage, /Generate and download JSON, CSV, or XLSX artifacts/);
   assert.match(reviewPage, /format\.toUpperCase/);
   assert.match(reviewPage, /requestDocumentExport/);
+  assert.match(reviewPage, /Field saves validate path and payload/);
+  assert.match(reviewPage, /alert-banner alert-error/);
 });
