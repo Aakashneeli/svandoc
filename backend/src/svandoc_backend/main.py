@@ -51,7 +51,9 @@ from svandoc_backend.models.xero_sync_log import XeroSyncLog
 from svandoc_backend.queueing import enqueue_processing_job
 from svandoc_backend.quickbooks_connector import QuickBooksConnectorError, export_to_quickbooks
 from svandoc_backend.rate_limit import rate_limiter, rate_limit_subject, should_rate_limit_path
+from svandoc_backend.sage_connector import build_sage_export_plan
 from svandoc_backend.storage import get_storage_backend
+from svandoc_backend.tally_connector import build_tally_import_package
 from svandoc_backend.uploads import (
     compute_checksum,
     normalized_mime_type,
@@ -846,6 +848,8 @@ async def export_document(
         "dropbox",
         "quickbooks",
         "xero",
+        "sage",
+        "tally",
     ]
     if export_format not in supported_formats:
         return JSONResponse(
@@ -1164,6 +1168,40 @@ async def export_document(
                     retryable=True,
                 ),
             )
+    elif export_format == "sage":
+        try:
+            storage_backend = get_storage_backend()
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=500,
+                content=error_envelope(
+                    request,
+                    code="CONFIGURATION_ERROR",
+                    message=str(exc),
+                    details=None,
+                    retryable=False,
+                ),
+            )
+        plan = build_sage_export_plan(payload)
+        export_content = json.dumps(plan.payload, sort_keys=True, indent=2, ensure_ascii=True).encode("utf-8")
+        artifact_filename = f"{document_id}.sage-plan.json"
+        storage_uri = storage_backend.store_document(artifact_id, artifact_filename, export_content)
+    elif export_format == "tally":
+        try:
+            storage_backend = get_storage_backend()
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=500,
+                content=error_envelope(
+                    request,
+                    code="CONFIGURATION_ERROR",
+                    message=str(exc),
+                    details=None,
+                    retryable=False,
+                ),
+            )
+        package = build_tally_import_package(payload)
+        storage_uri = storage_backend.store_document(artifact_id, package.filename, package.content)
     else:
         try:
             storage_backend = get_storage_backend()

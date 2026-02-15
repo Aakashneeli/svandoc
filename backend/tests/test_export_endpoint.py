@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import unittest
+import zipfile
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -542,6 +543,55 @@ class ExportEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         payload = response.json()
         self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_sage_persists_strategy_artifact(self) -> None:
+        document_id = "doc-export-sage"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "sage"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "sage")
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, data["artifact_id"])
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        plan = json.loads(Path(artifact.storage_uri).read_text(encoding="utf-8"))
+        self.assertEqual(plan["provider"], "sage")
+        self.assertEqual(plan["phases"][0]["phase"], "phase_1_file_exchange")
+
+    def test_export_tally_persists_import_package(self) -> None:
+        document_id = "doc-export-tally"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "tally"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "tally")
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, data["artifact_id"])
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        archive_bytes = Path(artifact.storage_uri).read_bytes()
+        with zipfile.ZipFile(BytesIO(archive_bytes), mode="r") as archive:
+            names = set(archive.namelist())
+            self.assertIn("manifest.json", names)
+            self.assertIn("voucher.xml", names)
+            self.assertIn("summary.csv", names)
 
     def test_export_returns_404_when_document_missing(self) -> None:
         response = self.client.post(
