@@ -8,7 +8,7 @@ Last updated: 2026-02-15 (through T-110)
 - `Depends On`: task IDs that must be completed first.
 - `Owner`: placeholder to assign later.
 - `Definition of Done`: objective completion criteria.
-- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; complete `T-106` to `T-109` before `T-025`; execute `T-102` to `T-105` during deployment phase.
+- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; complete `T-106` to `T-109` before `T-025`; before starting `T-025`, bring up both vLLM servers and pass `backend/scripts/inference-smoke.ps1`; execute `T-102` to `T-105` during deployment phase.
 
 ## Task Backlog
 

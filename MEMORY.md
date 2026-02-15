@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (T-109 complete)
+Last updated: 2026-02-15 (next agenda updated after T-109)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -48,6 +48,7 @@ Important runtime notes for this machine/session:
 8. Supabase hostnames (`*.supabase.co`) get `sslmode=require` automatically if not provided in `DATABASE_URL`.
 9. Use Supabase pooler/IPv4-capable `DATABASE_URL` for this environment; direct DB host may fail due to IPv6-only resolution.
 10. Inference provisioning is now explicitly tracked before routing: complete `T-106` to `T-109` before `T-025`.
+11. Canonical model IDs are `rednote-hilab/dots.ocr` (primary) and `datalab-to/chandra` (fallback), with dual endpoints `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL`.
 
 ## 5) Completed Task Batches
 
@@ -76,10 +77,12 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-025` Implement routing rules from `dots.ocr` to fallback.
-2. `T-026` Normalize raw OCR output into canonical schema.
-3. `T-027` Implement field-level confidence scoring map.
-4. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
+1. Start dual vLLM servers (`rednote-hilab/dots.ocr` on primary endpoint, `datalab-to/chandra` on fallback endpoint).
+2. Run and pass inference smoke validation: `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1`.
+3. `T-025` Implement routing rules from `dots.ocr` to fallback.
+4. `T-026` Normalize raw OCR output into canonical schema.
+5. `T-027` Implement field-level confidence scoring map.
+6. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
 1. Implement in order.
