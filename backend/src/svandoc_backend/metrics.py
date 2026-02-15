@@ -22,6 +22,7 @@ _METRICS: dict[str, Any] = {
     "jobs_processed_total": 0,
     "jobs_failed_total": 0,
     "jobs_review_required_total": 0,
+    "job_outcomes_recent": deque(maxlen=50),
 }
 
 
@@ -62,6 +63,7 @@ def record_job_result(status: str) -> None:
     normalized = (status or "").strip().lower()
     with _LOCK:
         _METRICS["jobs_processed_total"] += 1
+        _METRICS["job_outcomes_recent"].append(normalized)
         if normalized == "failed":
             _METRICS["jobs_failed_total"] += 1
         if normalized == "review_required":
@@ -88,6 +90,7 @@ def metrics_snapshot() -> dict[str, Any]:
         jobs_processed = int(_METRICS["jobs_processed_total"])
         jobs_failed = int(_METRICS["jobs_failed_total"])
         jobs_review_required = int(_METRICS["jobs_review_required_total"])
+        recent_outcomes = list(_METRICS["job_outcomes_recent"])
 
     avg_latency = (latency_total / request_count) if request_count else 0.0
     queue_depth = _queue_depth_snapshot()
@@ -108,6 +111,8 @@ def metrics_snapshot() -> dict[str, Any]:
             "processed_total": jobs_processed,
             "failed_total": jobs_failed,
             "review_required_total": jobs_review_required,
+            "failed_recent_window": sum(1 for outcome in recent_outcomes if outcome == "failed"),
+            "recent_window_size": len(recent_outcomes),
         },
         "queue": queue_depth,
     }
@@ -122,3 +127,4 @@ def reset_metrics_for_tests() -> None:
         _METRICS["jobs_processed_total"] = 0
         _METRICS["jobs_failed_total"] = 0
         _METRICS["jobs_review_required_total"] = 0
+        _METRICS["job_outcomes_recent"].clear()

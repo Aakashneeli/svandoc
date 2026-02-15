@@ -91,6 +91,7 @@ Minimum local values to verify:
 7. `VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`
 8. `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
 9. `OCR_FALLBACK_MODEL=datalab-to/chandra`
+10. `ALERT_FAILED_RECENT_THRESHOLD`, `ALERT_QUEUE_BACKLOG_DEPTH`, `ALERT_API_ERROR_RATE_THRESHOLD`
 
 ## 4. Startup
 

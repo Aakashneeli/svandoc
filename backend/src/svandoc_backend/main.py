@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
+from svandoc_backend.alerts import evaluate_alerts
 from svandoc_backend.auth import require_roles
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
@@ -110,9 +111,22 @@ async def add_request_correlation(request: Request, call_next):
 
 @app.get("/metrics")
 async def metrics(request: Request) -> dict[str, object]:
+    snapshot = metrics_snapshot()
     return success_envelope(
         request,
-        data=metrics_snapshot(),
+        data={
+            **snapshot,
+            "alerts": evaluate_alerts(snapshot),
+        },
+    )
+
+
+@app.get("/alerts")
+async def alerts(request: Request) -> dict[str, object]:
+    snapshot = metrics_snapshot()
+    return success_envelope(
+        request,
+        data=evaluate_alerts(snapshot),
     )
 
 
