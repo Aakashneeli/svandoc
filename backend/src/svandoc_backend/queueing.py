@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from uuid import uuid4
+from typing import Any
 
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
@@ -16,6 +17,7 @@ from svandoc_backend.job_state_machine import can_transition, transition_job_sta
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
+from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.preprocessing import preprocess_image_content
 from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
 from svandoc_backend.worker_logging import emit_worker_log
@@ -23,6 +25,9 @@ from svandoc_backend.worker_logging import emit_worker_log
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 DEFAULT_DOTS_MODEL = "dots.ocr"
 DEFAULT_CHANDRA_MODEL = "chandra"
+DEFAULT_FALLBACK_MIN_CONFIDENCE = 0.75
+DEFAULT_FALLBACK_LINE_ITEMS_THRESHOLD = 12
+DEFAULT_FALLBACK_PAGE_COUNT_THRESHOLD = 2
 
 JOB_SESSION_FACTORY: sessionmaker[Session] = SessionLocal
 
@@ -57,9 +62,69 @@ def _fallback_model_name() -> str:
 
 
 def _choose_ocr_adapter(model_name: str, client: object) -> DotsOCRAdapter | ChandraOCRAdapter:
-    if is_fallback_model(model_name, _fallback_model_name()):
+    model_basename = (model_name or "").strip().lower().rsplit("/", 1)[-1]
+    if "chandra" in model_basename:
         return ChandraOCRAdapter(client=client, model_name=model_name)
     return DotsOCRAdapter(client=client, model_name=model_name)
+
+
+def _read_float_env(name: str, default: float) -> float:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        parsed = float(raw)
+    except ValueError:
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _read_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _flatten_confidences(value: Any) -> list[float]:
+    if isinstance(value, dict):
+        flattened: list[float] = []
+        for nested in value.values():
+            flattened.extend(_flatten_confidences(nested))
+        return flattened
+    if isinstance(value, list):
+        flattened = []
+        for nested in value:
+            flattened.extend(_flatten_confidences(nested))
+        return flattened
+    if isinstance(value, (int, float)):
+        return [float(value)]
+    return []
+
+
+def _line_item_count(structured_payload: dict[str, object]) -> int:
+    line_items = structured_payload.get("line_items")
+    if isinstance(line_items, list):
+        return len(line_items)
+    return 0
+
+
+def _fallback_route_reasons(extraction: OCRExtractionResult, document: Document) -> list[str]:
+    reasons: list[str] = []
+    min_confidence_threshold = _read_float_env("OCR_FALLBACK_MIN_CONFIDENCE", DEFAULT_FALLBACK_MIN_CONFIDENCE)
+    line_items_threshold = _read_int_env("OCR_FALLBACK_LINE_ITEMS_THRESHOLD", DEFAULT_FALLBACK_LINE_ITEMS_THRESHOLD)
+    page_count_threshold = _read_int_env("OCR_FALLBACK_PAGE_COUNT_THRESHOLD", DEFAULT_FALLBACK_PAGE_COUNT_THRESHOLD)
+
+    confidences = _flatten_confidences(extraction.confidence_map)
+    if extraction.review_required:
+        reasons.append("review_required")
+    if confidences and min(confidences) < min_confidence_threshold:
+        reasons.append("low_confidence")
+    if _line_item_count(extraction.structured_payload) >= line_items_threshold:
+        reasons.append("complex_layout_line_items")
+    if int(document.page_count) >= page_count_threshold:
+        reasons.append("complex_layout_page_count")
+    return reasons
 
 
 def _resolve_document_path(storage_uri: str) -> Path:
@@ -175,6 +240,29 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             filename=str(document.filename),
             doc_type_hint="invoice",
         )
+        fallback_applied = False
+        route_reasons: list[str] = []
+        if not is_fallback_model(model_name, _fallback_model_name()):
+            route_reasons = _fallback_route_reasons(extraction, document)
+            if route_reasons:
+                fallback_model = _fallback_model_name()
+                fallback_client = build_vllm_client_for_model(fallback_model)
+                fallback_adapter = _choose_ocr_adapter(fallback_model, fallback_client)
+                extraction = fallback_adapter.extract(
+                    document_content=preprocessed.content,
+                    mime_type=preprocessed.mime_type,
+                    filename=str(document.filename),
+                    doc_type_hint="invoice",
+                )
+                fallback_applied = True
+                emit_worker_log(
+                    event="fallback_routed",
+                    request_id=safe_request_id,
+                    job_id=job.id,
+                    document_id=job.document_id,
+                    status="processing",
+                    details={"reasons": route_reasons, "from_model": model_name, "to_model": fallback_model},
+                )
         _persist_extraction_result(
             session,
             document_id=document.id,
@@ -197,6 +285,8 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
                 "model": extraction.model,
                 "preprocess_steps": list(preprocessed.applied_steps),
                 "review_required": extraction.review_required,
+                "fallback_applied": fallback_applied,
+                "fallback_route_reasons": route_reasons,
             },
         )
         return {"job_id": job_id, "status": str(job.status)}

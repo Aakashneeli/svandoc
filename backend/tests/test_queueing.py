@@ -32,6 +32,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.previous_queue_backend = os.environ.get("QUEUE_BACKEND")
         self.previous_ocr_default_model = os.environ.get("OCR_DEFAULT_MODEL")
         self.previous_ocr_fallback_model = os.environ.get("OCR_FALLBACK_MODEL")
+        self.previous_fallback_page_threshold = os.environ.get("OCR_FALLBACK_PAGE_COUNT_THRESHOLD")
         self.previous_task_always_eager = bool(celery_app.conf.task_always_eager)
         self.previous_job_session_factory = JOB_SESSION_FACTORY
 
@@ -51,6 +52,10 @@ class QueueingIntegrationTests(unittest.TestCase):
             os.environ.pop("OCR_FALLBACK_MODEL", None)
         else:
             os.environ["OCR_FALLBACK_MODEL"] = self.previous_ocr_fallback_model
+        if self.previous_fallback_page_threshold is None:
+            os.environ.pop("OCR_FALLBACK_PAGE_COUNT_THRESHOLD", None)
+        else:
+            os.environ["OCR_FALLBACK_PAGE_COUNT_THRESHOLD"] = self.previous_fallback_page_threshold
 
         queueing.JOB_SESSION_FACTORY = self.previous_job_session_factory
         celery_app.conf.task_always_eager = self.previous_task_always_eager
@@ -161,6 +166,8 @@ class QueueingIntegrationTests(unittest.TestCase):
 
     def test_process_document_job_sets_review_required_when_confidence_is_low(self) -> None:
         job_id = "job-review-required"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "rednote-hilab/dots.ocr"
         self._insert_document_and_job(job_id)
         with ExitStack() as stack:
             stack.enter_context(
@@ -216,6 +223,81 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertFalse(dots_extract.called)
         self.assertTrue(chandra_extract.called)
+
+    def test_process_document_job_routes_from_dots_to_chandra_when_review_required(self) -> None:
+        job_id = "job-route-review-required"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        os.environ["OCR_FALLBACK_PAGE_COUNT_THRESHOLD"] = "10"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
+                    side_effect=[object(), object()],
+                )
+            )
+            dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            chandra_extract = stack.enter_context(patch("svandoc_backend.queueing.ChandraOCRAdapter.extract"))
+            dots_extract.return_value = OCRExtractionResult(
+                model="rednote-hilab/dots.ocr",
+                raw_text="DOTS LOW",
+                structured_payload={"vendor_name": "ACME"},
+                confidence_map={"vendor_name": 0.62},
+                review_required=True,
+            )
+            chandra_extract.return_value = OCRExtractionResult(
+                model="datalab-to/chandra",
+                raw_text="CHANDRA BETTER",
+                structured_payload={"vendor_name": "ACME Ltd"},
+                confidence_map={"vendor_name": 0.95},
+                review_required=False,
+            )
+            result = process_document_job(job_id, request_id="req-route-review")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(dots_extract.called)
+        self.assertTrue(chandra_extract.called)
+
+        session = self.SessionTesting()
+        try:
+            extraction = (
+                session.query(ExtractionResult).filter(ExtractionResult.document_id == "doc-1").one_or_none()
+            )
+        finally:
+            session.close()
+        self.assertIsNotNone(extraction)
+        assert extraction is not None
+        self.assertEqual(extraction.raw_ocr_text, "CHANDRA BETTER")
+        self.assertFalse(extraction.is_review_required)
+
+    def test_process_document_job_does_not_route_when_primary_is_confident(self) -> None:
+        job_id = "job-no-route"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        os.environ["OCR_FALLBACK_PAGE_COUNT_THRESHOLD"] = "10"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
+                    return_value=object(),
+                )
+            )
+            dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            chandra_extract = stack.enter_context(patch("svandoc_backend.queueing.ChandraOCRAdapter.extract"))
+            dots_extract.return_value = OCRExtractionResult(
+                model="rednote-hilab/dots.ocr",
+                raw_text="DOTS CONFIDENT",
+                structured_payload={"vendor_name": "ACME"},
+                confidence_map={"vendor_name": 0.96, "total": 0.95},
+                review_required=False,
+            )
+            result = process_document_job(job_id, request_id="req-no-route")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(dots_extract.called)
+        self.assertFalse(chandra_extract.called)
 
     def test_process_document_job_marks_failed_when_client_selection_errors(self) -> None:
         job_id = "job-fallback-client-error"
