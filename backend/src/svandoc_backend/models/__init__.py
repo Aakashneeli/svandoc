@@ -6,6 +6,7 @@ from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.extraction_template import ExtractionTemplate
 from svandoc_backend.models.job import Job
+from svandoc_backend.models.template_learning_rule import TemplateLearningRule
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.models.webhook_delivery_log import WebhookDeliveryLog
 from svandoc_backend.models.xero_sync_log import XeroSyncLog
@@ -17,6 +18,7 @@ __all__ = [
     "UserCorrection",
     "ExportArtifact",
     "ExtractionTemplate",
+    "TemplateLearningRule",
     "DocumentDeletionEvent",
     "WebhookDeliveryLog",
     "XeroSyncLog",

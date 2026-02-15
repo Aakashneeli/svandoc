@@ -51,6 +51,7 @@ from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.extraction_template import ExtractionTemplate
 from svandoc_backend.models.job import Job
+from svandoc_backend.models.template_learning_rule import TemplateLearningRule
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.models.xero_sync_log import XeroSyncLog
 from svandoc_backend.queueing import enqueue_processing_job
@@ -300,6 +301,30 @@ def _apply_template_mapping(
             continue
         rendered[str(target_field)] = value
     return rendered, missing_paths
+
+
+def _learning_opt_in_enabled(request: Request) -> bool:
+    header_value = request.headers.get("x-template-learning-opt-in", "").strip().lower()
+    if header_value in {"1", "true", "yes", "on"}:
+        return True
+    if header_value in {"0", "false", "no", "off"}:
+        return False
+    env_default = os.getenv("TEMPLATE_LEARNING_DEFAULT_OPT_IN", "0").strip().lower()
+    return env_default in {"1", "true", "yes", "on"}
+
+
+def _template_id_from_extraction_payload(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    template_output = payload.get("template_output")
+    if not isinstance(template_output, dict):
+        return None
+    template_id = str(template_output.get("template_id", "")).strip()
+    return template_id or None
+
+
+def _to_learning_value(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
 
 
 def _normalize_export_format(raw_format: str) -> str:
@@ -933,12 +958,38 @@ async def apply_extraction_template(
         source_payload=payload,
         field_mapping=template.field_mapping if isinstance(template.field_mapping, dict) else {},
     )
+    learning_rules = (
+        db.query(TemplateLearningRule)
+        .filter(TemplateLearningRule.team_id == team_id)
+        .filter(TemplateLearningRule.template_id == str(template.id))
+        .order_by(TemplateLearningRule.correction_count.desc(), TemplateLearningRule.last_seen_at.desc())
+        .all()
+    )
+    learned_suggestions: dict[str, Any] = {}
+    best_by_path: dict[str, TemplateLearningRule] = {}
+    for rule in learning_rules:
+        field_path = str(rule.field_path)
+        if field_path not in best_by_path:
+            best_by_path[field_path] = rule
+    for target_field, source_path in (template.field_mapping if isinstance(template.field_mapping, dict) else {}).items():
+        rule = best_by_path.get(str(source_path))
+        if rule is None or int(rule.correction_count) < 2:
+            continue
+        try:
+            suggested_value = json.loads(str(rule.corrected_value))
+        except json.JSONDecodeError:
+            suggested_value = str(rule.corrected_value)
+        learned_suggestions[str(target_field)] = suggested_value
+        if str(target_field) not in mapped_output and str(source_path) in missing_paths:
+            mapped_output[str(target_field)] = suggested_value
+
     payload["template_output"] = {
         "template_id": str(template.id),
         "template_name": str(template.name),
         "schema_definition": template.schema_definition if isinstance(template.schema_definition, dict) else {},
         "mapped_fields": mapped_output,
         "missing_paths": missing_paths,
+        "learned_suggestions": learned_suggestions,
         "applied_at": _iso_timestamp(datetime.now(timezone.utc)),
     }
     extraction.structured_payload = payload
@@ -1157,6 +1208,45 @@ async def patch_document_extraction(
                 corrected_at=correction_time,
             )
         )
+
+    if _learning_opt_in_enabled(request):
+        template_id = _template_id_from_extraction_payload(updated_payload)
+        if template_id:
+            template = (
+                db.query(ExtractionTemplate)
+                .filter(ExtractionTemplate.id == template_id)
+                .filter(ExtractionTemplate.team_id == str(document.team_id))
+                .one_or_none()
+            )
+            if template is not None:
+                for correction in corrections:
+                    field_path = str(correction["field_path"])
+                    corrected_value = _to_learning_value(correction["new_value"])
+                    rule = (
+                        db.query(TemplateLearningRule)
+                        .filter(TemplateLearningRule.team_id == str(document.team_id))
+                        .filter(TemplateLearningRule.template_id == str(template.id))
+                        .filter(TemplateLearningRule.field_path == field_path)
+                        .filter(TemplateLearningRule.corrected_value == corrected_value)
+                        .one_or_none()
+                    )
+                    if rule is None:
+                        db.add(
+                            TemplateLearningRule(
+                                id=str(uuid4()),
+                                team_id=str(document.team_id),
+                                template_id=str(template.id),
+                                doc_type=str(extraction.doc_type),
+                                field_path=field_path,
+                                corrected_value=corrected_value,
+                                correction_count=1,
+                                first_seen_at=correction_time,
+                                last_seen_at=correction_time,
+                            )
+                        )
+                    else:
+                        rule.correction_count = int(rule.correction_count) + 1
+                        rule.last_seen_at = correction_time
 
     extraction.structured_payload = updated_payload
     extraction.updated_at = correction_time

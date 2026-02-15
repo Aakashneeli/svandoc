@@ -26,6 +26,7 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("webhook_delivery_logs", table_names)
         self.assertIn("xero_sync_logs", table_names)
         self.assertIn("extraction_templates", table_names)
+        self.assertIn("template_learning_rules", table_names)
 
     def test_documents_constraints_and_indexes_exist(self) -> None:
         unique_names = {item["name"] for item in self.inspector.get_unique_constraints("documents")}
@@ -105,6 +106,12 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("ix_extraction_templates_team_id", index_names)
         self.assertIn("ix_extraction_templates_doc_type", index_names)
         self.assertIn("ix_extraction_templates_created_at", index_names)
+
+    def test_template_learning_rules_indexes_exist(self) -> None:
+        index_names = {item["name"] for item in self.inspector.get_indexes("template_learning_rules")}
+        self.assertIn("ix_template_learning_rules_template_id", index_names)
+        self.assertIn("ix_template_learning_rules_field_path", index_names)
+        self.assertIn("ix_template_learning_rules_last_seen_at", index_names)
 
 
 if __name__ == "__main__":
