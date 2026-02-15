@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-065)
+Last updated: 2026-02-15 (updated after T-066)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -110,6 +110,7 @@ Completed:
 54. `T-063`: Cloud storage connectors implemented for Google Drive, OneDrive, and Dropbox (`svandoc_backend.cloud_connectors`) with export endpoint support (`format=gdrive|onedrive|dropbox`), persisted delivery status tracking in `export_artifacts` (`delivery_status`), migration `20260215_0007`, review UI actions, and connector runbook (`docs/cloud-storage-connectors.md`).
 55. `T-064`: Outbound webhook events implemented for `job.completed`, `job.failed`, and `export.created` with signed payloads, retry/backoff delivery, per-attempt DB logs (`webhook_delivery_logs`), migration `20260215_0008`, and runbook (`docs/webhooks.md`).
 56. `T-065`: Zapier integration added with API-key protected trigger/action endpoints (`/api/integrations/zapier/triggers/job-completed`, `/api/integrations/zapier/actions/fetch-results`) plus setup guide (`docs/zapier-integration.md`) and env contract (`ZAPIER_API_KEY`).
+57. `T-066`: Make.com integration templates added via API (`/api/integrations/make/templates`) with API-key protection, reusable upload/export scenario definitions (`svandoc_backend.make_templates`), and setup guide (`docs/make-integration.md`).
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -119,10 +120,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-066` Build Make.com integration templates and connection guide.
-2. `T-067` Implement QuickBooks Online connector for invoice/receipt payload sync.
-3. `T-068` Implement Xero connector with sync status and retry handling.
-4. `T-069` Implement phased Sage/Tally connector strategy.
+1. `T-067` Implement QuickBooks Online connector for invoice/receipt payload sync.
+2. `T-068` Implement Xero connector with sync status and retry handling.
+3. `T-069` Implement phased Sage/Tally connector strategy.
+4. `T-070` Implement email intake with workspace-specific ingestion address.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -238,6 +239,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 58. `T-063` cloud connector checks passed on `2026-02-15`: `backend/tests/test_cloud_connectors.py`, `backend/tests/test_google_sheets_export.py`, `backend/tests/test_export_endpoint.py`, `backend/tests/test_audit_endpoint.py`, and `backend/tests/test_core_schema.py` passed; frontend `typecheck` and `test` passed; migration validation reached `20260215_0007` head against SQLite dry-run database.
 59. `T-064` webhook checks passed on `2026-02-15`: `backend/tests/test_webhooks.py`, `backend/tests/test_export_endpoint.py`, `backend/tests/test_queueing.py`, and `backend/tests/test_core_schema.py` passed (36 tests); migration validation reached `20260215_0008` head against SQLite dry-run database and verified `webhook_delivery_logs` indexes.
 60. `T-065` Zapier checks passed on `2026-02-15`: `backend/tests/test_zapier_integration.py`, `backend/tests/test_export_endpoint.py`, `backend/tests/test_job_status_endpoint.py`, and `backend/tests/test_extraction_endpoint.py` passed (22 tests); full backend suite passed (`145` tests).
+61. `T-066` Make integration checks passed on `2026-02-15`: `backend/tests/test_make_integration.py`, `backend/tests/test_zapier_integration.py`, and `backend/tests/test_export_endpoint.py` passed (18 tests); full backend suite passed (`147` tests).
 
 ## 11) Update Protocol For Future Sessions
 

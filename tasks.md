@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-065)
+Last updated: 2026-02-15 (through T-066)
 
 ## How to use this file
 
@@ -83,7 +83,7 @@ Last updated: 2026-02-15 (through T-065)
 | T-063 | P2 | [DONE 2026-02-15] Implement cloud storage connectors (Google Drive, OneDrive, Dropbox) | T-036 | Export artifacts can be saved to each provider with status tracking | Codex |
 | T-064 | P2 | [DONE 2026-02-15] Implement outbound webhook events (`job.completed`, `job.failed`, `export.created`) | T-030, T-036 | Signed webhooks delivered with retries and delivery logs | Codex |
 | T-065 | P2 | [DONE 2026-02-15] Build Zapier integration using webhook/API triggers and actions | T-064 | Zapier app supports trigger on completion and action to fetch results | Codex |
-| T-066 | P2 | Build Make.com integration templates and connection guide | T-064 | Make templates run end-to-end for upload and export workflows | Unassigned |
+| T-066 | P2 | [DONE 2026-02-15] Build Make.com integration templates and connection guide | T-064 | Make templates run end-to-end for upload and export workflows | Codex |
 | T-067 | P2 | Implement QuickBooks Online connector for invoice/receipt payload sync | T-061, T-002 | Validated mapping for vendors, amounts, taxes, and references | Unassigned |
 | T-068 | P2 | Implement Xero connector with sync status and retry handling | T-067 | Xero sync works with idempotent retries and reconciliation logs | Unassigned |
 | T-069 | P2 | Implement phased Sage/Tally connector strategy | T-061, T-036 | Sage integration path and Tally import package delivered with docs | Unassigned |

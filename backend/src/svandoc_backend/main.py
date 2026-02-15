@@ -39,6 +39,7 @@ from svandoc_backend.export_service import (
 )
 from svandoc_backend.google_sheets_export import GoogleSheetsExportError, append_to_google_sheet
 from svandoc_backend.logging_sink import configure_structured_logging
+from svandoc_backend.make_templates import build_make_templates
 from svandoc_backend.metrics import metrics_snapshot, record_api_request
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
@@ -291,6 +292,35 @@ def require_zapier_key(request: Request) -> JSONResponse | None:
                 request,
                 code="FORBIDDEN",
                 message="Invalid Zapier API key.",
+                details=None,
+                retryable=False,
+            ),
+        )
+    return None
+
+
+def require_make_key(request: Request) -> JSONResponse | None:
+    configured = os.getenv("MAKE_API_KEY", "").strip()
+    if not configured:
+        return JSONResponse(
+            status_code=503,
+            content=error_envelope(
+                request,
+                code="CONFIGURATION_ERROR",
+                message="Make integration is not configured.",
+                details={"missing_env": ["MAKE_API_KEY"]},
+                retryable=False,
+            ),
+        )
+
+    received = request.headers.get("x-make-api-key", "").strip()
+    if not received or received != configured:
+        return JSONResponse(
+            status_code=403,
+            content=error_envelope(
+                request,
+                code="FORBIDDEN",
+                message="Invalid Make API key.",
                 details=None,
                 retryable=False,
             ),
@@ -631,6 +661,24 @@ async def zapier_action_fetch_results(
             "structured_payload": extraction.structured_payload,
             "confidence_map": extraction.confidence_map,
             "updated_at": _iso_timestamp(extraction.updated_at),
+        },
+    )
+
+
+@app.get("/api/integrations/make/templates")
+async def make_templates(request: Request) -> dict[str, object]:
+    auth_error = require_make_key(request)
+    if auth_error is not None:
+        return auth_error
+
+    api_base_url = os.getenv("MAKE_API_BASE_URL", "").strip()
+    if not api_base_url:
+        api_base_url = str(request.base_url).rstrip("/")
+    templates = build_make_templates(api_base_url=api_base_url)
+    return success_envelope(
+        request,
+        data={
+            "templates": templates,
         },
     )
 
