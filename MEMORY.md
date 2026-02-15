@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15
+Last updated: 2026-02-15 (T-021 complete)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -58,18 +58,19 @@ Completed:
 5. `T-013` to `T-015`: `user_corrections`/`export_artifacts` tables + migration, upload endpoint, and file validation (type/size/page count) with structured errors.
 6. `T-016` to `T-018`: storage backend abstraction (`local` + `s3` stub), checksum duplicate detection/conflict handling, and Redis/Celery queue integration with local consumption tests.
 7. `T-019` to `T-020`: job lifecycle state machine + DB transition enforcement and worker structured logging context (`request_id`, `job_id`, `document_id`).
-8. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
-9. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
-10. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
+8. `T-021`: image preprocessing module added (orientation correction, denoise, deskew) with sample-corpus tests.
+9. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+10. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+11. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-021` Implement image preprocessing (deskew, denoise, orientation).
-2. `T-022` Build vLLM client module with timeout/retry policies.
-3. `T-023` Integrate `dots.ocr` extraction adapter.
+1. `T-022` Build vLLM client module with timeout/retry policies.
+2. `T-023` Integrate `dots.ocr` extraction adapter.
+3. `T-024` Integrate `Chandra` fallback extraction adapter.
 4. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -136,6 +137,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 9. `T-020` worker logging tests passed for structured context keys (`request_id`, `job_id`, `document_id`) and request-id propagation from upload enqueue.
 10. `T-098`, `T-099`, and `T-101` changes passed backend suite (`41` tests) on `2026-02-15`.
 11. `T-100` migration validation succeeded against Supabase Postgres (`20260214_0004` head) using pooled connection settings.
+12. `T-021` preprocessing tests passed on generated sample corpus (clean/noisy/skewed) and full backend suite (`44` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 
