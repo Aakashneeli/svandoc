@@ -130,16 +130,21 @@ class ExportEndpointTests(unittest.TestCase):
         document_id = "doc-export-json"
         self._insert_document_with_extraction(document_id)
 
-        response = self.client.post(
-            f"/api/documents/{document_id}/export",
-            headers={"x-user-id": "editor-a"},
-            json={"format": "json"},
-        )
+        with patch("svandoc_backend.main.deliver_webhook_event") as webhook_mock:
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                headers={"x-user-id": "editor-a"},
+                json={"format": "json"},
+            )
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
         self.assertEqual(data["format"], "json")
         self.assertEqual(data["document_id"], document_id)
         self.assertEqual(data["created_by"], "editor-a")
+        webhook_mock.assert_called_once()
+        _, kwargs = webhook_mock.call_args
+        self.assertEqual(kwargs["event_type"], "export.created")
+        self.assertEqual(kwargs["data"]["document_id"], document_id)
 
         session = self.SessionTesting()
         try:
@@ -265,19 +270,24 @@ class ExportEndpointTests(unittest.TestCase):
         self._insert_document_with_extraction(document_id)
 
         with patch("svandoc_backend.main.upload_to_google_drive") as mocked_upload:
-            mocked_upload.side_effect = CloudConnectorError("google_drive_upload_failed:403")
-            response = self.client.post(
-                f"/api/documents/{document_id}/export",
-                json={
-                    "format": "gdrive",
-                    "cloud_access_token": "token-value",
-                },
-            )
+            with patch("svandoc_backend.main.deliver_webhook_event") as webhook_mock:
+                mocked_upload.side_effect = CloudConnectorError("google_drive_upload_failed:403")
+                response = self.client.post(
+                    f"/api/documents/{document_id}/export",
+                    json={
+                        "format": "gdrive",
+                        "cloud_access_token": "token-value",
+                    },
+                )
 
         self.assertEqual(response.status_code, 502)
         payload = response.json()
         self.assertEqual(payload["error"]["code"], "EXPORT_DELIVERY_FAILED")
         artifact_id = payload["error"]["details"]["artifact_id"]
+        webhook_mock.assert_called_once()
+        _, kwargs = webhook_mock.call_args
+        self.assertEqual(kwargs["event_type"], "export.created")
+        self.assertEqual(kwargs["data"]["delivery_status"], "failed")
 
         session = self.SessionTesting()
         try:

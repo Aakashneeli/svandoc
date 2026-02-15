@@ -466,6 +466,53 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(job.error_code, "DEAD_LETTER")
         self.assertIn("temporary inference timeout", str(job.error_message))
 
+    def test_process_document_job_emits_completed_webhook_event(self) -> None:
+        job_id = "job-webhook-completed"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        os.environ["OCR_FALLBACK_PAGE_COUNT_THRESHOLD"] = "10"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
+                    return_value=object(),
+                )
+            )
+            dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            webhook_mock = stack.enter_context(patch("svandoc_backend.queueing.deliver_webhook_event"))
+            dots_extract.return_value = OCRExtractionResult(
+                model="rednote-hilab/dots.ocr",
+                raw_text="DOTS CONFIDENT",
+                structured_payload={"vendor_name": "ACME"},
+                confidence_map={"vendor_name": 0.96, "total": 0.95},
+                review_required=False,
+            )
+            process_document_job(job_id, request_id="req-webhook-completed")
+
+        webhook_mock.assert_called_once()
+        _, kwargs = webhook_mock.call_args
+        self.assertEqual(kwargs["event_type"], "job.completed")
+        self.assertEqual(kwargs["data"]["job_id"], job_id)
+
+    def test_process_document_job_emits_failed_webhook_event(self) -> None:
+        job_id = "job-webhook-failed"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+        with patch("svandoc_backend.queueing.deliver_webhook_event") as webhook_mock:
+            with self.assertRaises(RuntimeError):
+                with patch(
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
+                    side_effect=RuntimeError("inference unavailable"),
+                ):
+                    process_document_job(job_id, request_id="req-webhook-failed")
+
+        webhook_mock.assert_called_once()
+        _, kwargs = webhook_mock.call_args
+        self.assertEqual(kwargs["event_type"], "job.failed")
+        self.assertEqual(kwargs["data"]["job_id"], job_id)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -54,6 +54,7 @@ from svandoc_backend.uploads import (
     safe_filename,
     validate_upload,
 )
+from svandoc_backend.webhooks import deliver_webhook_event
 
 app = FastAPI(
     title="svanDoc Backend API",
@@ -755,6 +756,19 @@ async def export_document(
                 )
             )
             db.commit()
+            deliver_webhook_event(
+                db,
+                event_type="export.created",
+                data={
+                    "artifact_id": artifact_id,
+                    "document_id": document_id,
+                    "format": export_format,
+                    "storage_uri": storage_uri,
+                    "delivery_status": delivery_status,
+                    "created_by": created_by,
+                    "created_at": _iso_timestamp(created_at),
+                },
+            )
             return JSONResponse(
                 status_code=502,
                 content=error_envelope(
@@ -803,6 +817,19 @@ async def export_document(
     )
     db.add(artifact)
     db.commit()
+    deliver_webhook_event(
+        db,
+        event_type="export.created",
+        data={
+            "artifact_id": artifact_id,
+            "document_id": document_id,
+            "format": export_format,
+            "storage_uri": storage_uri,
+            "delivery_status": delivery_status,
+            "created_by": created_by,
+            "created_at": _iso_timestamp(created_at),
+        },
+    )
 
     return success_envelope(
         request,

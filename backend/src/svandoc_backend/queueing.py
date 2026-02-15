@@ -24,6 +24,7 @@ from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.preprocessing import preprocess_image_content
 from svandoc_backend.validation import validate_normalized_payload
 from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
+from svandoc_backend.webhooks import deliver_webhook_event
 from svandoc_backend.worker_logging import emit_worker_log
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
@@ -331,6 +332,17 @@ def process_document_job(
         )
         transition_job_status(job, "review_required" if final_review_required else "completed")
         session.commit()
+        if str(job.status) == "completed":
+            deliver_webhook_event(
+                session,
+                event_type="job.completed",
+                data={
+                    "job_id": str(job.id),
+                    "document_id": str(job.document_id),
+                    "status": str(job.status),
+                    "attempt_count": int(job.attempt_count),
+                },
+            )
         emit_worker_log(
             event="job_processing_completed",
             request_id=safe_request_id,
@@ -394,6 +406,18 @@ def process_document_job(
                 error_message=str(exc),
             )
             session.commit()
+            deliver_webhook_event(
+                session,
+                event_type="job.failed",
+                data={
+                    "job_id": str(failed_job.id),
+                    "document_id": str(failed_job.document_id),
+                    "status": "failed",
+                    "attempt_count": int(failed_job.attempt_count),
+                    "error_code": error_code,
+                    "error_message": str(exc),
+                },
+            )
             emit_worker_log(
                 event="job_processing_failed",
                 request_id=safe_request_id,

@@ -23,6 +23,7 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("user_corrections", table_names)
         self.assertIn("export_artifacts", table_names)
         self.assertIn("document_deletion_events", table_names)
+        self.assertIn("webhook_delivery_logs", table_names)
 
     def test_documents_constraints_and_indexes_exist(self) -> None:
         unique_names = {item["name"] for item in self.inspector.get_unique_constraints("documents")}
@@ -80,6 +81,14 @@ class CoreSchemaModelTests(unittest.TestCase):
         index_names = {item["name"] for item in self.inspector.get_indexes("document_deletion_events")}
         self.assertIn("ix_document_deletion_events_document_id", index_names)
         self.assertIn("ix_document_deletion_events_deleted_at", index_names)
+
+    def test_webhook_delivery_logs_constraints_and_indexes_exist(self) -> None:
+        check_names = {item["name"] for item in self.inspector.get_check_constraints("webhook_delivery_logs")}
+        index_names = {item["name"] for item in self.inspector.get_indexes("webhook_delivery_logs")}
+
+        self.assertIn("ck_webhook_delivery_logs_status_valid", check_names)
+        self.assertIn("ix_webhook_delivery_logs_event_type", index_names)
+        self.assertIn("ix_webhook_delivery_logs_created_at", index_names)
 
 
 if __name__ == "__main__":
