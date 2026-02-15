@@ -121,7 +121,7 @@ class VLLMClientTests(unittest.TestCase):
             "OCR_FALLBACK_MODEL": "datalab-to/chandra",
         }
         with patch.dict(os.environ, env, clear=False):
-            self.assertEqual(base_url_for_model("FL33TW00D-HF/dots.ocr"), "http://localhost:11434/v1")
+            self.assertEqual(base_url_for_model("rednote-hilab/dots.ocr"), "http://localhost:11434/v1")
             self.assertEqual(base_url_for_model("datalab-to/chandra"), "http://localhost:11435/v1")
             self.assertEqual(base_url_for_model("chandra"), "http://localhost:11435/v1")
 
@@ -132,7 +132,7 @@ class VLLMClientTests(unittest.TestCase):
             "OCR_FALLBACK_MODEL": "datalab-to/chandra",
         }
         with patch.dict(os.environ, env, clear=False):
-            primary_client = build_vllm_client_for_model("FL33TW00D-HF/dots.ocr")
+            primary_client = build_vllm_client_for_model("rednote-hilab/dots.ocr")
             fallback_client = build_vllm_client_for_model("datalab-to/chandra")
 
         self.assertEqual(primary_client._base_url, "http://primary.example/v1")  # noqa: SLF001
@@ -141,3 +141,4 @@ class VLLMClientTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

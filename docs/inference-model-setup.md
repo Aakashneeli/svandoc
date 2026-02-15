@@ -4,7 +4,7 @@ Last updated: 2026-02-15
 
 This runbook provisions the canonical OCR models used by svanDoc:
 
-1. Primary: `FL33TW00D-HF/dots.ocr`
+1. Primary: `rednote-hilab/dots.ocr`
 2. Fallback: `datalab-to/chandra`
 
 svanDoc expects dual endpoints:
@@ -36,7 +36,7 @@ huggingface-cli login
 
 Verify model pages are reachable from this machine:
 
-1. `https://huggingface.co/FL33TW00D-HF/dots.ocr`
+1. `https://huggingface.co/rednote-hilab/dots.ocr`
 2. `https://huggingface.co/datalab-to/chandra`
 
 ## 4) Start Primary vLLM Server (`dots.ocr`)
@@ -45,8 +45,8 @@ Run in terminal window A:
 
 ```powershell
 python -m vllm.entrypoints.openai.api_server `
-  --model FL33TW00D-HF/dots.ocr `
-  --served-model-name FL33TW00D-HF/dots.ocr `
+  --model rednote-hilab/dots.ocr `
+  --served-model-name rednote-hilab/dots.ocr `
   --host 0.0.0.0 `
   --port 11434
 ```
@@ -70,7 +70,7 @@ Use these values in `.env`:
 ```powershell
 VLLM_BASE_URL=http://localhost:11434/v1
 VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1
-OCR_DEFAULT_MODEL=FL33TW00D-HF/dots.ocr
+OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr
 OCR_FALLBACK_MODEL=datalab-to/chandra
 ```
 
@@ -113,3 +113,4 @@ Expected:
 1. Exit code `0`
 2. Evidence file written at `.local-sandbox/inference-smoke.json` (or `INFERENCE_SMOKE_OUTPUT_PATH`)
 3. `overall_success=true` with one successful completion check per model endpoint
+

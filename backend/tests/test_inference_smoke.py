@@ -42,13 +42,13 @@ def _response(status_code: int, payload: dict[str, Any], url: str) -> httpx.Resp
 class InferenceSmokeTests(unittest.TestCase):
     def test_run_inference_smoke_success_for_both_targets(self) -> None:
         targets = [
-            InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="FL33TW00D-HF/dots.ocr"),
+            InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="rednote-hilab/dots.ocr"),
             InferenceTarget(role="fallback", base_url="http://localhost:11435/v1", model_name="datalab-to/chandra"),
         ]
         responses = [
             _response(
                 200,
-                {"data": [{"id": "FL33TW00D-HF/dots.ocr"}]},
+                {"data": [{"id": "rednote-hilab/dots.ocr"}]},
                 "http://localhost:11434/v1/models",
             ),
             _response(
@@ -76,9 +76,9 @@ class InferenceSmokeTests(unittest.TestCase):
         self.assertTrue(all(item["completion_ok"] for item in evidence["checks"]))
 
     def test_run_inference_smoke_reports_failure_when_completion_fails(self) -> None:
-        targets = [InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="FL33TW00D-HF/dots.ocr")]
+        targets = [InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="rednote-hilab/dots.ocr")]
         responses = [
-            _response(200, {"data": [{"id": "FL33TW00D-HF/dots.ocr"}]}, "http://localhost:11434/v1/models"),
+            _response(200, {"data": [{"id": "rednote-hilab/dots.ocr"}]}, "http://localhost:11434/v1/models"),
             _response(503, {"error": "busy"}, "http://localhost:11434/v1/chat/completions"),
         ]
         client = _StubClient(responses)
@@ -94,3 +94,4 @@ class InferenceSmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

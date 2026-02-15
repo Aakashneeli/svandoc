@@ -89,7 +89,7 @@ Minimum local values to verify:
 5. `API_PORT` and `FRONTEND_PORT`
 6. `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT_SECONDS`, `DB_POOL_RECYCLE_SECONDS`
 7. `VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`
-8. `OCR_DEFAULT_MODEL=FL33TW00D-HF/dots.ocr`
+8. `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
 9. `OCR_FALLBACK_MODEL=datalab-to/chandra`
 
 ## 4. Startup
@@ -137,7 +137,7 @@ Use this canonical local inference contract before OCR pipeline tasks:
 
 1. Primary endpoint: `VLLM_BASE_URL=http://localhost:11434/v1`
 2. Fallback endpoint: `VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1`
-3. Primary model ID: `OCR_DEFAULT_MODEL=FL33TW00D-HF/dots.ocr`
+3. Primary model ID: `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
 4. Fallback model ID: `OCR_FALLBACK_MODEL=datalab-to/chandra`
 5. Keep model IDs as upstream canonical Hugging Face IDs; treat quantized/community forks as optional overrides.
 
@@ -150,3 +150,4 @@ Inference smoke validation command:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1
 ```
+

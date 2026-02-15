@@ -36,7 +36,7 @@ def _build_targets_from_env() -> list[InferenceTarget]:
     fallback_url = (
         os.getenv("VLLM_FALLBACK_BASE_URL", "http://localhost:11435/v1").strip() or "http://localhost:11435/v1"
     )
-    primary_model = os.getenv("OCR_DEFAULT_MODEL", "FL33TW00D-HF/dots.ocr").strip() or "FL33TW00D-HF/dots.ocr"
+    primary_model = os.getenv("OCR_DEFAULT_MODEL", "rednote-hilab/dots.ocr").strip() or "rednote-hilab/dots.ocr"
     fallback_model = os.getenv("OCR_FALLBACK_MODEL", "datalab-to/chandra").strip() or "datalab-to/chandra"
 
     return [
@@ -161,3 +161,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

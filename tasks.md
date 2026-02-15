@@ -38,7 +38,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-022 | P0 | [DONE 2026-02-15] Build vLLM client module with timeout/retry policies | T-020 | Client handles transient failures and metrics hooks | Codex |
 | T-023 | P0 | [DONE 2026-02-15] Integrate `dots.ocr` extraction adapter | T-022 | End-to-end extraction works for baseline samples | Codex |
 | T-024 | P0 | [DONE 2026-02-15] Integrate `Chandra` fallback extraction adapter | T-022 | Fallback path callable and tested on hard samples | Codex |
-| T-106 | P0 | [DONE 2026-02-15] Pin canonical OCR model IDs and environment contract for dual-endpoint inference | T-022, T-024 | `docs/local-setup.md` and `.env.example` define canonical IDs (`FL33TW00D-HF/dots.ocr`, `datalab-to/chandra`) and endpoint vars (`VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`) with clear defaults/notes | Codex |
+| T-106 | P0 | [DONE 2026-02-15] Pin canonical OCR model IDs and environment contract for dual-endpoint inference | T-022, T-024 | `docs/local-setup.md` and `.env.example` define canonical IDs (`rednote-hilab/dots.ocr`, `datalab-to/chandra`) and endpoint vars (`VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`) with clear defaults/notes | Codex |
 | T-107 | P0 | [DONE 2026-02-15] Implement backend support for fallback inference endpoint selection | T-106, T-022, T-024 | Runtime selects primary vs fallback base URL by model path; fallback client path covered by unit tests and structured failure handling | Codex |
 | T-108 | P0 | [DONE 2026-02-15] Add local model provisioning runbook for Hugging Face + dual vLLM servers | T-106, T-107 | Runbook includes HF auth, model pull/serve commands, GPU/VRAM guidance, cache paths, and troubleshooting for both models | Codex |
 | T-109 | P0 | [DONE 2026-02-15] Add inference smoke validation for `dots.ocr` and `chandra` endpoints | T-107, T-108 | Validation script/checklist confirms both endpoints reachable and one successful inference call per model with evidence output | Codex |
@@ -151,3 +151,4 @@ Last updated: 2026-02-15 (through T-110)
 | Reliability | Retry logic and failure handling pass integration tests |
 | Usability | Pilot users complete upload -> review -> export with >= 80 percent success |
 | Security | Role checks and retention/delete workflows validated |
+

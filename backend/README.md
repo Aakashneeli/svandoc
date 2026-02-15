@@ -54,7 +54,8 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 1. Primary OCR endpoint: `VLLM_BASE_URL` and model `OCR_DEFAULT_MODEL`.
 2. Fallback OCR endpoint: `VLLM_FALLBACK_BASE_URL` and model `OCR_FALLBACK_MODEL`.
 3. Canonical upstream model IDs:
-   - `FL33TW00D-HF/dots.ocr`
+   - `rednote-hilab/dots.ocr`
    - `datalab-to/chandra`
 4. Validate dual-endpoint inference setup:
    - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1`
+
