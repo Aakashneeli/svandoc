@@ -6,8 +6,11 @@ import json
 import hashlib
 import logging
 import os
+from dataclasses import dataclass
 from copy import deepcopy
 from datetime import datetime, timezone
+from email import policy
+from email.parser import BytesParser
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
@@ -367,6 +370,21 @@ def require_make_key(request: Request) -> JSONResponse | None:
     return None
 
 
+@dataclass(frozen=True)
+class ParsedEmailAttachment:
+    filename: str
+    mime_type: str
+    content: bytes
+
+
+@dataclass(frozen=True)
+class ParsedInboundEmail:
+    from_address: str
+    to_address: str
+    subject: str
+    attachments: list[ParsedEmailAttachment]
+
+
 def queue_backend_mode() -> str:
     mode = os.getenv("QUEUE_BACKEND", "celery").strip().lower()
     return mode or "celery"
@@ -375,6 +393,71 @@ def queue_backend_mode() -> str:
 def redis_url() -> str:
     value = os.getenv("REDIS_URL", "redis://localhost:6379/0").strip()
     return value or "redis://localhost:6379/0"
+
+
+def email_ingestion_domain() -> str:
+    configured = os.getenv("EMAIL_INGESTION_DOMAIN", "ingest.svandoc.local").strip().lower()
+    return configured or "ingest.svandoc.local"
+
+
+def expected_ingestion_address(team_id: str) -> str:
+    sanitized = "".join(ch for ch in (team_id or "local-team").strip().lower() if ch.isalnum() or ch in {"-", "_"})
+    local_part = sanitized or "local-team"
+    return f"{local_part}@{email_ingestion_domain()}"
+
+
+def email_max_attachments() -> int:
+    raw = os.getenv("EMAIL_MAX_ATTACHMENTS", "10").strip()
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return 10
+    return parsed if parsed > 0 else 10
+
+
+def allowed_sender_domains() -> set[str]:
+    raw = os.getenv("EMAIL_ALLOWED_SENDER_DOMAINS", "").strip()
+    if not raw:
+        return set()
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+def _extract_address(value: str) -> str:
+    trimmed = (value or "").strip()
+    if "<" in trimmed and ">" in trimmed:
+        start = trimmed.rfind("<")
+        end = trimmed.rfind(">")
+        if 0 <= start < end:
+            return trimmed[start + 1 : end].strip().lower()
+    return trimmed.lower()
+
+
+def parse_inbound_email_message(message_bytes: bytes) -> ParsedInboundEmail:
+    parsed = BytesParser(policy=policy.default).parsebytes(message_bytes)
+    from_address = _extract_address(str(parsed.get("from", "")))
+    to_address = _extract_address(str(parsed.get("to", "")))
+    subject = str(parsed.get("subject", "")).strip()
+    attachments: list[ParsedEmailAttachment] = []
+    for part in parsed.iter_attachments():
+        filename = safe_filename(part.get_filename())
+        mime_type = normalized_mime_type(part.get_content_type())
+        payload_bytes = part.get_payload(decode=True)
+        content = payload_bytes if isinstance(payload_bytes, (bytes, bytearray)) else b""
+        if not filename or not content:
+            continue
+        attachments.append(
+            ParsedEmailAttachment(
+                filename=filename,
+                mime_type=mime_type,
+                content=bytes(content),
+            )
+        )
+    return ParsedInboundEmail(
+        from_address=from_address,
+        to_address=to_address,
+        subject=subject,
+        attachments=attachments,
+    )
 
 
 def check_database_ready(db: Session) -> tuple[bool, str]:
@@ -1442,5 +1525,236 @@ async def upload_documents(
         data={
             "document_ids": document_ids,
             "job_ids": job_ids,
+        },
+    )
+
+
+@app.post("/api/documents/email-intake")
+async def intake_documents_from_email(
+    request: Request,
+    message: UploadFile = File(...),
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor"})
+    if auth_error is not None:
+        return auth_error
+
+    team_id = request.headers.get("x-team-id", "local-team")
+    uploaded_by = request.headers.get("x-user-id", "local-user")
+    worker_request_id = request_id_from_request(request)
+    expected_address = expected_ingestion_address(team_id)
+
+    try:
+        storage_backend = get_storage_backend()
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=500,
+            content=error_envelope(
+                request,
+                code="CONFIGURATION_ERROR",
+                message=str(exc),
+                details=None,
+                retryable=False,
+            ),
+        )
+
+    raw_message = await message.read()
+    parsed_email = parse_inbound_email_message(raw_message)
+    if not parsed_email.to_address:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Inbound email is missing recipient address.",
+                details={"expected_to_address": expected_address},
+                retryable=False,
+            ),
+        )
+    if parsed_email.to_address != expected_address:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Inbound email recipient does not match workspace ingestion address.",
+                details={"to_address": parsed_email.to_address, "expected_to_address": expected_address},
+                retryable=False,
+            ),
+        )
+
+    sender_domains = allowed_sender_domains()
+    sender_domain = parsed_email.from_address.split("@", 1)[-1].lower() if "@" in parsed_email.from_address else ""
+    if sender_domains and sender_domain not in sender_domains:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Inbound sender domain is not allowed.",
+                details={"from_address": parsed_email.from_address, "allowed_domains": sorted(sender_domains)},
+                retryable=False,
+            ),
+        )
+
+    if len(parsed_email.attachments) == 0:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Inbound email has no supported attachments.",
+                details={"subject": parsed_email.subject},
+                retryable=False,
+            ),
+        )
+
+    if len(parsed_email.attachments) > email_max_attachments():
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Inbound email attachment count exceeds configured limit.",
+                details={
+                    "attachment_count": len(parsed_email.attachments),
+                    "max_attachments": email_max_attachments(),
+                },
+                retryable=False,
+            ),
+        )
+
+    prepared_uploads: list[dict[str, object]] = []
+    validation_details: list[dict[str, object]] = []
+    for attachment in parsed_email.attachments:
+        issues, page_count = validate_upload(attachment.filename, attachment.mime_type, attachment.content)
+        if issues:
+            validation_details.append({"filename": attachment.filename, "issues": issues})
+            continue
+        prepared_uploads.append(
+            {
+                "filename": attachment.filename,
+                "mime_type": attachment.mime_type,
+                "content": attachment.content,
+                "checksum": compute_checksum(attachment.content),
+                "page_count": page_count,
+            }
+        )
+
+    if validation_details:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="One or more email attachments are invalid.",
+                details={"files": validation_details},
+                retryable=False,
+            ),
+        )
+
+    duplicate_details: list[dict[str, object]] = []
+    uploads_by_checksum: dict[str, list[dict[str, object]]] = {}
+    for upload_data in prepared_uploads:
+        checksum = str(upload_data["checksum"])
+        uploads_by_checksum.setdefault(checksum, []).append(upload_data)
+
+    for checksum, uploads_for_checksum in uploads_by_checksum.items():
+        if len(uploads_for_checksum) > 1:
+            for upload_data in uploads_for_checksum:
+                duplicate_details.append(
+                    {
+                        "filename": str(upload_data["filename"]),
+                        "checksum": checksum,
+                        "reason": "duplicate_in_request",
+                    }
+                )
+
+    checksums = list(uploads_by_checksum.keys())
+    existing_documents = (
+        db.query(Document.id, Document.checksum).filter(Document.checksum.in_(checksums)).all()
+        if checksums
+        else []
+    )
+    existing_by_checksum = {str(checksum): str(document_id) for document_id, checksum in existing_documents}
+    for upload_data in prepared_uploads:
+        checksum = str(upload_data["checksum"])
+        existing_document_id = existing_by_checksum.get(checksum)
+        if existing_document_id:
+            duplicate_details.append(
+                {
+                    "filename": str(upload_data["filename"]),
+                    "checksum": checksum,
+                    "reason": "already_exists",
+                    "document_id": existing_document_id,
+                }
+            )
+
+    if duplicate_details:
+        return JSONResponse(
+            status_code=409,
+            content=error_envelope(
+                request,
+                code="DUPLICATE_DOCUMENT",
+                message="One or more email attachments already exist.",
+                details={"duplicates": duplicate_details},
+                retryable=False,
+            ),
+        )
+
+    document_ids: list[str] = []
+    job_ids: list[str] = []
+    for upload_data in prepared_uploads:
+        document_id = str(uuid4())
+        job_id = str(uuid4())
+        content = upload_data["content"]
+        storage_uri = storage_backend.store_document(document_id, str(upload_data["filename"]), content)
+        db.add(
+            Document(
+                id=document_id,
+                team_id=team_id,
+                uploaded_by=uploaded_by,
+                filename=str(upload_data["filename"]),
+                mime_type=str(upload_data["mime_type"]),
+                checksum=str(upload_data["checksum"]),
+                storage_uri=storage_uri,
+                page_count=int(upload_data["page_count"]),
+            )
+        )
+        db.add(
+            Job(
+                id=job_id,
+                document_id=document_id,
+                status="queued",
+            )
+        )
+        document_ids.append(document_id)
+        job_ids.append(job_id)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return JSONResponse(
+            status_code=409,
+            content=error_envelope(
+                request,
+                code="DUPLICATE_DOCUMENT",
+                message="One or more email attachments already exist.",
+                details=None,
+                retryable=False,
+            ),
+        )
+
+    for job_id in job_ids:
+        enqueue_processing_job(job_id, request_id=worker_request_id)
+
+    return success_envelope(
+        request,
+        data={
+            "document_ids": document_ids,
+            "job_ids": job_ids,
+            "to_address": parsed_email.to_address,
+            "subject": parsed_email.subject,
         },
     )

@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-16 (updated after T-069)
+Last updated: 2026-02-16 (updated after T-070)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -114,6 +114,7 @@ Completed:
 58. `T-067`: QuickBooks Online connector added for export sync (`format=quickbooks`) with canonical invoice/receipt mapping (`svandoc_backend.quickbooks_connector`), export endpoint integration, migration `20260215_0009`, and runbook (`docs/quickbooks-connector.md`).
 59. `T-068`: Xero connector added for export sync (`format=xero`) with idempotent retry handling (`Idempotency-Key`), per-attempt reconciliation logging in `xero_sync_logs`, migration `20260215_0010`, and runbook (`docs/xero-connector.md`).
 60. `T-069`: Phased Sage/Tally connector strategy implemented with export endpoint support (`format=sage|tally`), Sage phase-plan artifact generation, Tally import package generation (`manifest.json`, `voucher.xml`, `summary.csv`), migration `20260216_0011`, and runbook (`docs/sage-tally-connectors.md`).
+61. `T-070`: Email intake flow added at `POST /api/documents/email-intake` with workspace-specific ingestion address validation, RFC822 attachment parsing, sender-domain allow-list + attachment-count safeguards, upload validation/dedup reuse, and runbook/env contract updates (`docs/email-intake.md`, `.env.example`).
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -123,10 +124,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-070` Implement email intake with workspace-specific ingestion address.
-2. `T-071` Launch public REST API with API keys and scoped permissions.
-3. `T-072` Publish developer docs and starter SDKs (TypeScript and Python).
-4. `T-073` Implement custom extraction templates (schema builder + field mapping UI).
+1. `T-071` Launch public REST API with API keys and scoped permissions.
+2. `T-072` Publish developer docs and starter SDKs (TypeScript and Python).
+3. `T-073` Implement custom extraction templates (schema builder + field mapping UI).
+4. `T-074` Implement template learning from user corrections (opt-in).
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -246,6 +247,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 62. `T-067` QuickBooks checks passed on `2026-02-15`: `backend/tests/test_quickbooks_connector.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed (26 tests); migration validation reached `20260215_0009` head and verified `quickbooks` format constraint; full backend suite passed (`153` tests).
 63. `T-068` Xero checks passed on `2026-02-15`: `backend/tests/test_xero_connector.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed (30 tests); migration validation reached `20260215_0010` head and verified `xero_sync_logs` indexes + export-format constraint; full backend suite passed (`160` tests).
 64. `T-069` Sage/Tally checks passed on `2026-02-16`: `backend/tests/test_sage_connector.py`, `backend/tests/test_tally_connector.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed (`31` tests via `unittest`); Alembic migration validation reached `20260216_0011` head and verified updated export-format constraint includes `sage` and `tally`.
+65. `T-070` email-intake checks passed on `2026-02-16`: `backend/tests/test_email_intake.py`, `backend/tests/test_upload_endpoint.py`, and `backend/tests/test_export_endpoint.py` passed (`34` tests via `unittest`) validating workspace address checks, sender-domain guardrails, attachment-limit safeguards, and end-to-end document/job creation from forwarded `.eml` attachments.
 
 ## 11) Update Protocol For Future Sessions
 
