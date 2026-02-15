@@ -33,3 +33,35 @@ myvenv\Scripts\python.exe scripts/generate-benchmark-dataset.py
 ```
 
 The script overwrites the `v1` sample files and updates `manifest.json`.
+
+## Quality Evaluation
+
+Ground-truth labels for the dataset live in:
+
+- `datasets/benchmark/v1/ground_truth.json`
+
+Run extraction quality evaluation (precision/recall/F1 by field and doc type):
+
+```powershell
+$env:QUALITY_EVAL_GROUND_TRUTH_PATH="datasets/benchmark/v1/ground_truth.json"
+$env:QUALITY_EVAL_PREDICTIONS_PATH=".local-sandbox/quality-predictions.json"
+powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/quality-eval.ps1
+```
+
+Expected predictions input shape:
+
+```json
+{
+  "version": "pred-v1",
+  "samples": [
+    {
+      "sample_id": "invoice_clean_001",
+      "doc_type": "invoice",
+      "fields": {
+        "vendor.name": "ACME Industrial Supply",
+        "amounts.total": 1085.0
+      }
+    }
+  ]
+}
+```
