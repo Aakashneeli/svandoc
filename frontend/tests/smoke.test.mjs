@@ -30,3 +30,11 @@ test("navigation links include base routes", () => {
   assert.match(nav, /href:\s*"\/documents"/);
   assert.match(nav, /href:\s*"\/review"/);
 });
+
+test("upload page supports single and batch file selectors", () => {
+  const uploadPage = readFileSync(new URL("../app/upload/page.tsx", import.meta.url), "utf8");
+  assert.match(uploadPage, /Add Single File/);
+  assert.match(uploadPage, /Add Batch/);
+  assert.match(uploadPage, /Per-file status/);
+  assert.match(uploadPage, /multiple/);
+});

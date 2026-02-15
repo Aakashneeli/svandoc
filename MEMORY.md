@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-037)
+Last updated: 2026-02-15 (updated after T-038)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -81,6 +81,7 @@ Completed:
 26. `T-035`: XLSX export service added using `openpyxl`, including typed numeric/date cells and worksheet output compatible with Excel.
 27. `T-036`: `POST /api/documents/{id}/export` endpoint added for `json`/`csv`/`xlsx`, with storage write + `export_artifacts` persistence and not-found/validation error handling.
 28. `T-037`: Next.js app shell added with shared auth-ready layout and base routes (`/`, `/upload`, `/documents`, `/review`) plus route smoke checks.
+29. `T-038`: Upload page implemented with single-file and batch selectors, per-file status tracking (`queued`/`uploading`/`completed`/`failed`), and submit flow to `POST /api/documents/upload`.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -90,10 +91,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-038` Build upload page with single and batch upload UX.
-2. `T-039` Build document list page with status and search filters.
-3. `T-040` Build review page side-by-side document and extracted data.
-4. `T-041` Implement inline edit UI and correction submission.
+1. `T-039` Build document list page with status and search filters.
+2. `T-040` Build review page side-by-side document and extracted data.
+3. `T-041` Implement inline edit UI and correction submission.
+4. `T-042` Implement confidence highlight and review-required indicators.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -181,6 +182,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 30. `T-035` XLSX export service tests (Excel workbook opens, numeric/date fields preserved, invalid payload rejection) passed with full backend suite (`86` tests) on `2026-02-15`.
 31. `T-036` export endpoint tests (json/xlsx artifact persistence, invalid format, not-found paths) passed with full backend suite (`91` tests) on `2026-02-15`.
 32. `T-037` frontend shell checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`; `next build` failed in this sandbox with `spawn EPERM` worker-process limitation.
+33. `T-038` upload UX checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, with smoke assertions for single + batch controls and per-file status display.
 
 ## 11) Update Protocol For Future Sessions
 
