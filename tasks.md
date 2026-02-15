@@ -89,7 +89,7 @@ Last updated: 2026-02-15 (through T-068)
 | T-069 | P2 | [DONE 2026-02-16] Implement phased Sage/Tally connector strategy | T-061, T-036 | Sage integration path and Tally import package delivered with docs | Codex |
 | T-070 | P2 | [DONE 2026-02-16] Implement email intake with workspace-specific ingestion address | T-014, T-018 | Forwarded emails create document jobs with parsing safeguards | Codex |
 | T-071 | P2 | [DONE 2026-02-16] Launch public REST API with API keys and scoped permissions | T-055, T-030, T-031, T-036 | External clients can securely access document/job/extraction/export endpoints | Codex |
-| T-072 | P2 | Publish developer docs and starter SDKs (TypeScript and Python) | T-071 | Quickstart apps for both SDKs run against staging API | Unassigned |
+| T-072 | P2 | [DONE 2026-02-16] Publish developer docs and starter SDKs (TypeScript and Python) | T-071 | Quickstart apps for both SDKs run against staging API | Codex |
 | T-073 | P2 | Implement custom extraction templates (schema builder + field mapping UI) | T-026, T-041 | Users can define and apply templates to recurring document formats | Unassigned |
 | T-074 | P2 | Implement template learning from user corrections (opt-in) | T-073, T-041 | Repeated corrections improve extraction suggestions for matching layouts | Unassigned |
 | T-075 | P2 | Implement advanced table extraction (multi-page stitching, merged cells) | T-024, T-026 | Complex table benchmark accuracy improves and passes regression gates | Unassigned |
