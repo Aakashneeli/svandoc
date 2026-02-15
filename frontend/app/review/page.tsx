@@ -7,7 +7,10 @@ import {
   fetchDocumentExtraction,
   flattenEditableFields,
   patchDocumentExtraction,
+  requestDocumentExport,
   type ExtractionData,
+  type ExportArtifactData,
+  type ExportFormat,
   type PrimitiveValue,
 } from "../../src/review";
 
@@ -27,6 +30,17 @@ export default function ReviewPage() {
   const [saveMessageByPath, setSaveMessageByPath] = useState<Record<string, string>>({});
   const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.8);
   const [showLowConfidenceOnly, setShowLowConfidenceOnly] = useState(false);
+  const [exportStateByFormat, setExportStateByFormat] = useState<Record<ExportFormat, "idle" | "running">>({
+    json: "idle",
+    csv: "idle",
+    xlsx: "idle",
+  });
+  const [exportMessageByFormat, setExportMessageByFormat] = useState<Record<ExportFormat, string>>({
+    json: "",
+    csv: "",
+    xlsx: "",
+  });
+  const [artifactsByFormat, setArtifactsByFormat] = useState<Partial<Record<ExportFormat, ExportArtifactData>>>({});
 
   useEffect(() => {
     const initialDocumentId = searchParams.get("documentId");
@@ -159,20 +173,20 @@ export default function ReviewPage() {
     });
   }
 
-  function getFieldValue(path: string): PrimitiveValue | null {
+  function getFieldValue(path: string): { found: boolean; value: PrimitiveValue } {
     let pointer: unknown = draftPayload;
     for (const token of path.split(".")) {
       const tokenIndex = Number.parseInt(token, 10);
       const isArrayIndex = Number.isInteger(tokenIndex) && token === String(tokenIndex);
       if (isArrayIndex) {
         if (!Array.isArray(pointer) || tokenIndex < 0 || tokenIndex >= pointer.length) {
-          return null;
+          return { found: false, value: null };
         }
         pointer = pointer[tokenIndex];
         continue;
       }
       if (!pointer || typeof pointer !== "object" || !(token in (pointer as Record<string, unknown>))) {
-        return null;
+        return { found: false, value: null };
       }
       pointer = (pointer as Record<string, unknown>)[token];
     }
@@ -183,23 +197,23 @@ export default function ReviewPage() {
       || typeof pointer === "number"
       || typeof pointer === "boolean"
     ) {
-      return pointer;
+      return { found: true, value: pointer };
     }
-    return null;
+    return { found: false, value: null };
   }
 
   async function saveField(path: string) {
     if (!activeDocumentId || !extraction) {
       return;
     }
-    const nextValue = getFieldValue(path);
-    if (nextValue === null && nextValue !== getFieldValue(path)) {
+    const nextFieldValue = getFieldValue(path);
+    if (!nextFieldValue.found) {
       return;
     }
     setSaveStateByPath((current) => ({ ...current, [path]: "saving" }));
     setSaveMessageByPath((current) => ({ ...current, [path]: "" }));
     try {
-      const result = await patchDocumentExtraction(API_BASE_URL, activeDocumentId, [{ field_path: path, new_value: nextValue }]);
+      const result = await patchDocumentExtraction(API_BASE_URL, activeDocumentId, [{ field_path: path, new_value: nextFieldValue.value }]);
       const nextExtraction: ExtractionData = {
         ...extraction,
         structured_payload: result.structured_payload,
@@ -215,6 +229,36 @@ export default function ReviewPage() {
       setSaveMessageByPath((current) => ({ ...current, [path]: message }));
     } finally {
       setSaveStateByPath((current) => ({ ...current, [path]: "idle" }));
+    }
+  }
+
+  function isDownloadableUrl(storageUri: string): boolean {
+    const normalized = storageUri.toLowerCase();
+    return normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/");
+  }
+
+  async function runExport(format: ExportFormat) {
+    if (!activeDocumentId) {
+      setErrorMessage("Load a document before exporting.");
+      return;
+    }
+
+    setExportStateByFormat((current) => ({ ...current, [format]: "running" }));
+    setExportMessageByFormat((current) => ({ ...current, [format]: "" }));
+    try {
+      const artifact = await requestDocumentExport(API_BASE_URL, activeDocumentId, format);
+      setArtifactsByFormat((current) => ({ ...current, [format]: artifact }));
+      setExportMessageByFormat((current) => ({
+        ...current,
+        [format]: isDownloadableUrl(artifact.storage_uri)
+          ? "Export ready. Download available."
+          : `Export created at ${artifact.storage_uri}`,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to export.";
+      setExportMessageByFormat((current) => ({ ...current, [format]: message }));
+    } finally {
+      setExportStateByFormat((current) => ({ ...current, [format]: "idle" }));
     }
   }
 
@@ -345,6 +389,35 @@ export default function ReviewPage() {
                   );
                   })
                 )}
+              </div>
+
+              <div className="panel export-panel">
+                <h3>Export Actions</h3>
+                <p className="empty-note">Generate and download JSON, CSV, or XLSX artifacts.</p>
+                <div className="export-actions">
+                  {(["json", "csv", "xlsx"] as ExportFormat[]).map((format) => {
+                    const artifact = artifactsByFormat[format];
+                    const running = exportStateByFormat[format] === "running";
+                    return (
+                      <div key={format} className="export-row">
+                        <button
+                          type="button"
+                          className="button-like button-accent"
+                          onClick={() => runExport(format)}
+                          disabled={running}
+                        >
+                          {running ? `Exporting ${format.toUpperCase()}...` : `Export ${format.toUpperCase()}`}
+                        </button>
+                        {artifact && isDownloadableUrl(artifact.storage_uri) ? (
+                          <a className="button-like" href={artifact.storage_uri} target="_blank" rel="noreferrer">
+                            Download
+                          </a>
+                        ) : null}
+                        <span className="inline-edit-message">{exportMessageByFormat[format]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <pre className="review-json">{JSON.stringify(draftPayload, null, 2)}</pre>
             </>

@@ -406,6 +406,31 @@ a {
   color: #4f5c6d;
 }
 
+.export-panel {
+  margin-top: 0.85rem;
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: #f6f9fc;
+}
+
+.export-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.export-actions {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.export-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
 @media (max-width: 640px) {
   .topbar-inner {
     align-items: flex-start;
@@ -441,6 +466,11 @@ a {
   }
 
   .confidence-controls {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .export-row {
     grid-template-columns: 1fr;
     align-items: stretch;
   }

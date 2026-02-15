@@ -27,6 +27,17 @@ export type ExtractionPatchResponse = {
   review_required: boolean;
 };
 
+export type ExportFormat = "json" | "csv" | "xlsx";
+
+export type ExportArtifactData = {
+  artifact_id: string;
+  document_id: string;
+  format: ExportFormat;
+  storage_uri: string;
+  created_by: string;
+  created_at: string;
+};
+
 type EnvelopeError = {
   message?: string;
 };
@@ -65,6 +76,25 @@ export async function patchDocumentExtraction(
   const payload = (await response.json()) as EnvelopeResponse<ExtractionPatchResponse>;
   if (!response.ok || !payload.data) {
     throw new Error(payload.error?.message ?? "Unable to save correction.");
+  }
+  return payload.data;
+}
+
+export async function requestDocumentExport(
+  apiBaseUrl: string,
+  documentId: string,
+  format: ExportFormat,
+): Promise<ExportArtifactData> {
+  const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/export`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ format }),
+  });
+  const payload = (await response.json()) as EnvelopeResponse<ExportArtifactData>;
+  if (!response.ok || !payload.data) {
+    throw new Error(payload.error?.message ?? "Unable to create export artifact.");
   }
   return payload.data;
 }
