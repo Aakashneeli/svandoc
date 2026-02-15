@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from copy import deepcopy
 from datetime import datetime, timezone
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
@@ -22,6 +25,7 @@ from svandoc_backend.auth import require_roles
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.export_service import build_csv_export, build_json_export, build_xlsx_export
+from svandoc_backend.logging_sink import configure_structured_logging
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
@@ -40,6 +44,65 @@ app = FastAPI(
     title="svanDoc Backend API",
     version=__version__,
 )
+configure_structured_logging()
+api_logger = logging.getLogger("svandoc.api")
+
+
+@app.middleware("http")
+async def add_request_correlation(request: Request, call_next):
+    request_id = request.headers.get("x-request-id", "").strip() or f"req_{uuid4().hex}"
+    request.state.request_id = request_id
+    started = perf_counter()
+    api_logger.info(
+        json.dumps(
+            {
+                "event": "request_started",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        duration_ms = int((perf_counter() - started) * 1000)
+        api_logger.info(
+            json.dumps(
+                {
+                    "event": "request_failed",
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": 500,
+                    "duration_ms": duration_ms,
+                    "error": str(exc),
+                },
+                separators=(",", ":"),
+                sort_keys=True,
+            )
+        )
+        raise
+
+    duration_ms = int((perf_counter() - started) * 1000)
+    response.headers["x-request-id"] = request_id
+    api_logger.info(
+        json.dumps(
+            {
+                "event": "request_completed",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+    return response
 
 
 class CorrectionInput(BaseModel):

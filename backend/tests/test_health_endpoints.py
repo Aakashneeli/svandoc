@@ -31,6 +31,7 @@ class HealthAndReadinessEndpointTests(unittest.TestCase):
 
         payload = response.json()
         self.assert_success_envelope(payload)
+        self.assertEqual(response.headers.get("x-request-id"), payload["request_id"])
         self.assertEqual(payload["data"]["service"], "svandoc-backend")
         self.assertEqual(payload["data"]["status"], "ok")
 
@@ -73,6 +74,7 @@ class HealthAndReadinessEndpointTests(unittest.TestCase):
 
         payload = response.json()
         self.assertEqual(payload["request_id"], "req_custom_123")
+        self.assertEqual(response.headers.get("x-request-id"), "req_custom_123")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,9 @@ def utc_timestamp() -> str:
 
 
 def request_id_from_request(request: Request) -> str:
+    state_request_id = getattr(request.state, "request_id", "").strip()
+    if state_request_id:
+        return state_request_id
     header_value = request.headers.get("x-request-id", "").strip()
     if header_value:
         return header_value

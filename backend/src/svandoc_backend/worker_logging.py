@@ -7,7 +7,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from svandoc_backend.logging_sink import configure_structured_logging
+
 WORKER_LOGGER_NAME = "svandoc.worker"
+configure_structured_logging()
 worker_logger = logging.getLogger(WORKER_LOGGER_NAME)
 if worker_logger.level == logging.NOTSET:
     worker_logger.setLevel(logging.INFO)
