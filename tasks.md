@@ -65,7 +65,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-045 | P0 | [DONE 2026-02-15] Build end-to-end smoke test: upload -> review -> export | T-043 | Automated smoke test passes on local stack | Codex |
 | T-046 | P0 | [DONE 2026-02-15] Curate benchmark dataset (invoice + receipt variants) | T-001 | Dataset includes clean/noisy/rotated/multi-layout samples | Codex |
 | T-047 | P0 | [DONE 2026-02-15] Implement extraction quality evaluation script | T-046, T-026 | Script outputs precision/recall by field and document type | Codex |
-| T-048 | P0 | Add regression thresholds for extraction quality in CI | T-047 | CI fails when quality drops below agreed thresholds | Unassigned |
+| T-048 | P0 | [DONE 2026-02-15] Add regression thresholds for extraction quality in CI | T-047 | CI fails when quality drops below agreed thresholds | Codex |
 | T-049 | P0 | Add integration tests for queue retries and failure states | T-019, T-020 | Retry and dead-letter behavior verified by tests | Unassigned |
 | T-050 | P1 | Add role-based authorization checks (Admin/Editor/Viewer) | T-012 | Protected endpoints enforce role checks with tests | Unassigned |
 | T-051 | P1 | Add document retention policy and hard-delete job | T-012 | Retention rules configurable and deletions auditable | Unassigned |

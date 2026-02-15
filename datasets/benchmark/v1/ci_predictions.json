@@ -1,0 +1,118 @@
+{
+  "dataset": "svandoc-benchmark",
+  "version": "ci-baseline-v1",
+  "samples": [
+    {
+      "sample_id": "invoice_clean_001",
+      "doc_type": "invoice",
+      "fields": {
+        "vendor.name": "ACME Industrial Supply",
+        "invoice.invoice_number": "INV-1007",
+        "invoice.issue_date": "2026-02-15",
+        "invoice.due_date": "2026-03-01",
+        "amounts.subtotal": 1000.0,
+        "amounts.tax": 85.0,
+        "amounts.total": 1085.0,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "invoice_noisy_001",
+      "doc_type": "invoice",
+      "fields": {
+        "vendor.name": "ACME Industrial Supply",
+        "invoice.invoice_number": "INV-1007",
+        "invoice.issue_date": "2026-02-15",
+        "invoice.due_date": "2026-03-01",
+        "amounts.subtotal": 1000.0,
+        "amounts.tax": 85.0,
+        "amounts.total": 1085.0,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "invoice_rotated_001",
+      "doc_type": "invoice",
+      "fields": {
+        "vendor.name": "ACME Industrial Supply",
+        "invoice.invoice_number": "INV-1007",
+        "invoice.issue_date": "2026-02-15",
+        "invoice.due_date": "2026-03-01",
+        "amounts.subtotal": 1000.0,
+        "amounts.tax": 85.0,
+        "amounts.total": 1085.0,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "invoice_multilayout_001",
+      "doc_type": "invoice",
+      "fields": {
+        "vendor.name": "ACME Industrial Supply",
+        "invoice.invoice_number": "INV-1007",
+        "invoice.issue_date": "2026-02-15",
+        "invoice.due_date": "2026-03-01",
+        "amounts.subtotal": 1000.0,
+        "amounts.tax": 85.0,
+        "amounts.total": 1085.0,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "receipt_clean_001",
+      "doc_type": "receipt",
+      "fields": {
+        "merchant.name": "Corner Market",
+        "receipt.receipt_number": "RCPT-3321",
+        "receipt.transaction_date": "2026-02-15",
+        "receipt.transaction_time": "18:40",
+        "amounts.subtotal": 16.0,
+        "amounts.tax": 1.44,
+        "amounts.total": 17.44,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "receipt_noisy_001",
+      "doc_type": "receipt",
+      "fields": {
+        "merchant.name": "Corner Market",
+        "receipt.receipt_number": "RCPT-3321",
+        "receipt.transaction_date": "2026-02-15",
+        "receipt.transaction_time": "18:40",
+        "amounts.subtotal": 16.0,
+        "amounts.tax": 1.44,
+        "amounts.total": 17.44,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "receipt_rotated_001",
+      "doc_type": "receipt",
+      "fields": {
+        "merchant.name": "Corner Market",
+        "receipt.receipt_number": "RCPT-3321",
+        "receipt.transaction_date": "2026-02-15",
+        "receipt.transaction_time": "18:40",
+        "amounts.subtotal": 16.0,
+        "amounts.tax": 1.44,
+        "amounts.total": 17.44,
+        "amounts.currency": "USD"
+      }
+    },
+    {
+      "sample_id": "receipt_multilayout_001",
+      "doc_type": "receipt",
+      "fields": {
+        "merchant.name": "Corner Market",
+        "receipt.receipt_number": "RCPT-3321",
+        "receipt.transaction_date": "2026-02-15",
+        "receipt.transaction_time": "18:40",
+        "amounts.subtotal": 16.0,
+        "amounts.tax": 1.44,
+        "amounts.total": 17.44,
+        "amounts.currency": "USD"
+      }
+    }
+  ]
+}
