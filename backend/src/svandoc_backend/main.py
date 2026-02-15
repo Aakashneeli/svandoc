@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
+from svandoc_backend.auth import require_roles
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.export_service import build_csv_export, build_json_export, build_xlsx_export
@@ -191,6 +192,10 @@ async def get_job_status(
     job_id: str,
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor", "viewer"})
+    if auth_error is not None:
+        return auth_error
+
     job = db.get(Job, job_id)
     if job is None:
         return JSONResponse(
@@ -232,6 +237,10 @@ async def get_document_extraction(
     document_id: str,
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor", "viewer"})
+    if auth_error is not None:
+        return auth_error
+
     document = db.get(Document, document_id)
     if document is None:
         return JSONResponse(
@@ -283,6 +292,10 @@ async def patch_document_extraction(
     correction_request: ExtractionCorrectionRequest,
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor"})
+    if auth_error is not None:
+        return auth_error
+
     document = db.get(Document, document_id)
     if document is None:
         return JSONResponse(
@@ -383,6 +396,10 @@ async def export_document(
     export_request: ExportRequest,
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor", "viewer"})
+    if auth_error is not None:
+        return auth_error
+
     export_format = _normalize_export_format(export_request.format)
     if export_format not in {"json", "csv", "xlsx"}:
         return JSONResponse(
@@ -483,6 +500,10 @@ async def upload_documents(
     doc_type_hint: str | None = Form(None),
     db: Session = Depends(get_db_session),
 ) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor"})
+    if auth_error is not None:
+        return auth_error
+
     del doc_type_hint
     worker_request_id = request_id_from_request(request)
 
