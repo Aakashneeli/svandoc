@@ -144,3 +144,9 @@ Use this canonical local inference contract before OCR pipeline tasks:
 Detailed provisioning steps:
 
 1. `docs/inference-model-setup.md`
+
+Inference smoke validation command:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1
+```

@@ -99,3 +99,17 @@ OCR_FALLBACK_MODEL=datalab-to/chandra
    - verify model names in `.env` match served model names exactly.
 4. Slow startup:
    - first launch downloads model weights; subsequent launches reuse cache paths.
+
+## 9) Smoke Validation
+
+Run the repo smoke validator after both servers are up:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1
+```
+
+Expected:
+
+1. Exit code `0`
+2. Evidence file written at `.local-sandbox/inference-smoke.json` (or `INFERENCE_SMOKE_OUTPUT_PATH`)
+3. `overall_success=true` with one successful completion check per model endpoint

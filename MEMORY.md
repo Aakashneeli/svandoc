@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (T-108 complete)
+Last updated: 2026-02-15 (T-109 complete)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -66,18 +66,20 @@ Completed:
 12. `T-106`: canonical OCR model IDs and dual-endpoint env contract pinned in `.env.example`/docs.
 13. `T-107`: backend runtime now selects primary vs fallback vLLM endpoint by model path, with tested failure handling.
 14. `T-108`: local inference provisioning runbook added for Hugging Face auth + dual vLLM model serving.
-15. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
-16. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
-17. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
+15. `T-109`: inference smoke validator added (dual endpoint checks + per-model completion evidence output).
+16. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+17. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+18. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-109` Add inference smoke validation for `dots.ocr` and `chandra` endpoints.
-2. `T-025` Implement routing rules from `dots.ocr` to fallback.
-3. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
+1. `T-025` Implement routing rules from `dots.ocr` to fallback.
+2. `T-026` Normalize raw OCR output into canonical schema.
+3. `T-027` Implement field-level confidence scoring map.
+4. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
 1. Implement in order.
@@ -150,6 +152,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 16. `T-106` env/docs contract updates passed full backend suite (`53` tests) on `2026-02-15`.
 17. `T-107` fallback endpoint selection tests passed (model-to-endpoint routing and client-selection failure path) and full backend suite (`56` tests) on `2026-02-15`.
 18. `T-108` provisioning runbook/docs updates passed full backend suite (`56` tests) on `2026-02-15`.
+19. `T-109` inference smoke validation script/tests passed (primary + fallback endpoint checks with evidence JSON) and full backend suite (`58` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 

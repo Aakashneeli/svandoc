@@ -56,3 +56,5 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 3. Canonical upstream model IDs:
    - `FL33TW00D-HF/dots.ocr`
    - `datalab-to/chandra`
+4. Validate dual-endpoint inference setup:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1`
