@@ -26,6 +26,7 @@ from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
 from svandoc_backend.export_service import build_csv_export, build_json_export, build_xlsx_export
 from svandoc_backend.logging_sink import configure_structured_logging
+from svandoc_backend.metrics import metrics_snapshot, record_api_request
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
@@ -69,6 +70,7 @@ async def add_request_correlation(request: Request, call_next):
         response = await call_next(request)
     except Exception as exc:
         duration_ms = int((perf_counter() - started) * 1000)
+        record_api_request(duration_ms=duration_ms, status_code=500)
         api_logger.info(
             json.dumps(
                 {
@@ -87,6 +89,7 @@ async def add_request_correlation(request: Request, call_next):
         raise
 
     duration_ms = int((perf_counter() - started) * 1000)
+    record_api_request(duration_ms=duration_ms, status_code=response.status_code)
     response.headers["x-request-id"] = request_id
     api_logger.info(
         json.dumps(
@@ -103,6 +106,14 @@ async def add_request_correlation(request: Request, call_next):
         )
     )
     return response
+
+
+@app.get("/metrics")
+async def metrics(request: Request) -> dict[str, object]:
+    return success_envelope(
+        request,
+        data=metrics_snapshot(),
+    )
 
 
 class CorrectionInput(BaseModel):

@@ -15,6 +15,7 @@ from svandoc_backend.confidence import build_field_confidence_map
 from svandoc_backend.db import SessionLocal
 from svandoc_backend.dots_ocr import DotsOCRAdapter
 from svandoc_backend.job_state_machine import can_transition, transition_job_status
+from svandoc_backend.metrics import record_job_result
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
@@ -345,6 +346,7 @@ def process_document_job(
                 "validation_warning_count": len(validation_warnings),
             },
         )
+        record_job_result(str(job.status))
         return {"job_id": job_id, "status": str(job.status)}
     except Exception as exc:  # pragma: no cover - defensive path
         session.rollback()
@@ -400,6 +402,7 @@ def process_document_job(
                 status="failed",
                 details={"error_code": error_code, "error_message": str(exc)},
             )
+            record_job_result("failed")
         raise
     finally:
         session.close()

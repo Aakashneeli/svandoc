@@ -70,7 +70,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-050 | P1 | [DONE 2026-02-15] Add role-based authorization checks (Admin/Editor/Viewer) | T-012 | Protected endpoints enforce role checks with tests | Codex |
 | T-051 | P1 | [DONE 2026-02-15] Add document retention policy and hard-delete job | T-012 | Retention rules configurable and deletions auditable | Codex |
 | T-052 | P1 | [DONE 2026-02-15] Add structured logging sink and request correlation IDs | T-020 | Logs queryable by request and job IDs | Codex |
-| T-053 | P1 | Add metrics instrumentation (latency, queue depth, error rate) | T-020 | Metrics exposed and sampled in local dashboard | Unassigned |
+| T-053 | P1 | [DONE 2026-02-15] Add metrics instrumentation (latency, queue depth, error rate) | T-020 | Metrics exposed and sampled in local dashboard | Codex |
 | T-054 | P1 | Define alert thresholds for repeated failures and backlog | T-053 | Alert rules documented and test-triggered once | Unassigned |
 | T-055 | P1 | Add API rate limiting and abuse guardrails | T-010 | Rate limits active and tested | Unassigned |
 | T-056 | P1 | Add audit log views for correction and export events | T-013, T-041, T-036 | Users can inspect historical edits and exports | Unassigned |
