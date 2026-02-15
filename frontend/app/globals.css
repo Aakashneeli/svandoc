@@ -347,6 +347,23 @@ a {
   font-weight: 600;
 }
 
+.inline-edit-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.inline-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 120px;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.inline-edit-message {
+  font-size: 0.8rem;
+  color: #4f5c6d;
+}
+
 @media (max-width: 640px) {
   .topbar-inner {
     align-items: flex-start;
@@ -374,5 +391,10 @@ a {
 
   .review-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inline-edit-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 }

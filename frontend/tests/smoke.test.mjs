@@ -55,4 +55,7 @@ test("review page renders side-by-side review and extraction loading", () => {
   assert.match(reviewPage, /Document URL \(optional\)/);
   assert.match(reviewPage, /Extracted Data/);
   assert.match(reviewPage, /fetchDocumentExtraction/);
+  assert.match(reviewPage, /inline-edit-list/);
+  assert.match(reviewPage, /patchDocumentExtraction/);
+  assert.match(reviewPage, /Saving\.\.\.|Save/);
 });

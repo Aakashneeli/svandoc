@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-040)
+Last updated: 2026-02-15 (updated after T-041)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -84,6 +84,7 @@ Completed:
 29. `T-038`: Upload page implemented with single-file and batch selectors, per-file status tracking (`queued`/`uploading`/`completed`/`failed`), and submit flow to `POST /api/documents/upload`.
 30. `T-039`: Documents page implemented with vendor/file/id search, status filter, date-range filtering, and client-side filtered result list.
 31. `T-040`: Review page implemented with side-by-side document panel + extracted payload panel, including extraction loading via `GET /api/documents/{id}/extraction`.
+32. `T-041`: Inline edit controls added for primitive extraction fields with per-field save actions wired to `PATCH /api/documents/{id}/extraction`, and UI state refresh after corrections.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -93,10 +94,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-041` Implement inline edit UI and correction submission.
-2. `T-042` Implement confidence highlight and review-required indicators.
-3. `T-043` Implement export UI actions for JSON/CSV/XLSX.
-4. `T-044` Add frontend validation hints and error banners.
+1. `T-042` Implement confidence highlight and review-required indicators.
+2. `T-043` Implement export UI actions for JSON/CSV/XLSX.
+3. `T-044` Add frontend validation hints and error banners.
+4. `T-045` Build end-to-end smoke test: upload -> review -> export.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -187,6 +188,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 33. `T-038` upload UX checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, with smoke assertions for single + batch controls and per-file status display.
 34. `T-039` document-list checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for status/date/vendor filter controls.
 35. `T-040` review-page checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for side-by-side panel layout and extraction-loading wiring.
+36. `T-041` inline-edit checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for patch submission wiring and inline edit controls.
 
 ## 11) Update Protocol For Future Sessions
 
