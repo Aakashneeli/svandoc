@@ -17,6 +17,7 @@ from svandoc_backend.job_state_machine import can_transition, transition_job_sta
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
+from svandoc_backend.normalization import normalize_ocr_output
 from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.preprocessing import preprocess_image_content
 from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
@@ -263,13 +264,22 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
                     status="processing",
                     details={"reasons": route_reasons, "from_model": model_name, "to_model": fallback_model},
                 )
+        normalized_payload = normalize_ocr_output(
+            doc_type="invoice",
+            document_id=document.id,
+            source_file_name=str(document.filename),
+            page_count=int(document.page_count),
+            raw_text=extraction.raw_text,
+            structured_payload=extraction.structured_payload,
+            review_required=extraction.review_required,
+        )
         _persist_extraction_result(
             session,
             document_id=document.id,
             doc_type="invoice",
             model=extraction.model,
             raw_text=extraction.raw_text,
-            structured_payload=extraction.structured_payload,
+            structured_payload=normalized_payload,
             confidence_map=extraction.confidence_map,
             review_required=extraction.review_required,
         )

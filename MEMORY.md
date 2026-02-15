@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-025)
+Last updated: 2026-02-15 (updated after T-026)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -69,19 +69,20 @@ Completed:
 14. `T-108`: local inference provisioning runbook added for Hugging Face auth + dual vLLM model serving.
 15. `T-109`: inference smoke validator added (dual endpoint checks + per-model completion evidence output).
 16. `T-025`: worker routing now escalates from primary `dots.ocr` to fallback `chandra` on low-confidence/review-required or complex-layout thresholds.
-17. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
-18. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
-19. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
+17. `T-026`: canonical normalization layer added to emit schema-compatible invoice/receipt payloads with required fields/defaults before persistence.
+18. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+19. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+20. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-026` Normalize raw OCR output into canonical schema.
-2. `T-027` Implement field-level confidence scoring map.
-3. `T-028` Add validation rules (total math, date formats, currency consistency).
-4. `T-029` Persist extraction results and review flags.
+1. `T-027` Implement field-level confidence scoring map.
+2. `T-028` Add validation rules (total math, date formats, currency consistency).
+3. `T-029` Persist extraction results and review flags.
+4. `T-030` Implement `GET /api/jobs/{job_id}` endpoint.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -157,6 +158,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 18. `T-108` provisioning runbook/docs updates passed full backend suite (`56` tests) on `2026-02-15`.
 19. `T-109` inference smoke validation script/tests passed (primary + fallback endpoint checks with evidence JSON) and full backend suite (`58` tests) on `2026-02-15`.
 20. `T-025` fallback routing rules passed (confidence/layout triggers + fallback adapter execution path) and full backend suite (`60` tests) on `2026-02-15`.
+21. `T-026` normalization tests and worker integration path passed with full backend suite (`63` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 
