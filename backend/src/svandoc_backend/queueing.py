@@ -21,6 +21,7 @@ from svandoc_backend.models.job import Job
 from svandoc_backend.normalization import normalize_ocr_output
 from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.preprocessing import preprocess_image_content
+from svandoc_backend.validation import validate_normalized_payload
 from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
 from svandoc_backend.worker_logging import emit_worker_log
 
@@ -279,7 +280,12 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             normalized_payload=normalized_payload,
             raw_confidence_map=extraction.confidence_map,
         )
+        validation_warnings = validate_normalized_payload(doc_type="invoice", payload=normalized_payload)
+        final_review_required = bool(extraction.review_required or validation_warnings)
+
         normalized_payload["confidence"] = confidence_summary
+        normalized_payload["warnings"] = validation_warnings
+        normalized_payload["review_required"] = final_review_required
         _persist_extraction_result(
             session,
             document_id=document.id,
@@ -288,9 +294,9 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             raw_text=extraction.raw_text,
             structured_payload=normalized_payload,
             confidence_map=confidence_summary,
-            review_required=extraction.review_required,
+            review_required=final_review_required,
         )
-        transition_job_status(job, "review_required" if extraction.review_required else "completed")
+        transition_job_status(job, "review_required" if final_review_required else "completed")
         session.commit()
         emit_worker_log(
             event="job_processing_completed",
@@ -301,9 +307,10 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
             details={
                 "model": extraction.model,
                 "preprocess_steps": list(preprocessed.applied_steps),
-                "review_required": extraction.review_required,
+                "review_required": final_review_required,
                 "fallback_applied": fallback_applied,
                 "fallback_route_reasons": route_reasons,
+                "validation_warning_count": len(validation_warnings),
             },
         )
         return {"job_id": job_id, "status": str(job.status)}

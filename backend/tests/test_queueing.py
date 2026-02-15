@@ -213,7 +213,9 @@ class QueueingIntegrationTests(unittest.TestCase):
             chandra_extract.return_value = OCRExtractionResult(
                 model="chandra",
                 raw_text="CHANDRA RAW",
-                structured_payload={"line_items": [{"description": "Part A", "amount": 40.0}]},
+                structured_payload={
+                    "line_items": [{"description": "Part A", "qty": 2, "unit_price": 20.0, "amount": 40.0}]
+                },
                 confidence_map={"line_items": [{"description": 0.9, "amount": 0.87}]},
                 review_required=False,
             )
@@ -298,6 +300,57 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertTrue(dots_extract.called)
         self.assertFalse(chandra_extract.called)
+
+    def test_process_document_job_marks_review_required_when_validation_fails(self) -> None:
+        job_id = "job-validation-review"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "rednote-hilab/dots.ocr"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
+                    return_value=object(),
+                )
+            )
+            dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            dots_extract.return_value = OCRExtractionResult(
+                model="rednote-hilab/dots.ocr",
+                raw_text="INVOICE INVALID TOTAL",
+                structured_payload={
+                    "vendor_name": "ACME",
+                    "invoice_number": "INV-7",
+                    "issue_date": "2026-02-15",
+                    "currency": "USD",
+                    "subtotal": 100.0,
+                    "tax": 10.0,
+                    "shipping": 0.0,
+                    "discount": 0.0,
+                    "total": 50.0,
+                },
+                confidence_map={"vendor_name": 0.95, "total": 0.94},
+                review_required=False,
+            )
+            result = process_document_job(job_id, request_id="req-validation-review")
+
+        self.assertEqual(result["status"], "review_required")
+        session = self.SessionTesting()
+        try:
+            extraction = (
+                session.query(ExtractionResult).filter(ExtractionResult.document_id == "doc-1").one_or_none()
+            )
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(extraction)
+        assert extraction is not None
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertTrue(extraction.is_review_required)
+        warnings = extraction.structured_payload.get("warnings")
+        self.assertIsInstance(warnings, list)
+        self.assertTrue(any("amounts.total mismatch for invoice" in str(item) for item in warnings))
+        self.assertEqual(job.status, "review_required")
 
     def test_process_document_job_marks_failed_when_client_selection_errors(self) -> None:
         job_id = "job-fallback-client-error"
