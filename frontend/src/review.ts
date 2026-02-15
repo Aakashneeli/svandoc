@@ -38,6 +38,29 @@ export type ExportArtifactData = {
   created_at: string;
 };
 
+export type AuditCorrectionData = {
+  id: string;
+  field_path: string;
+  old_value: unknown;
+  new_value: unknown;
+  corrected_by: string;
+  corrected_at: string | null;
+};
+
+export type AuditExportData = {
+  id: string;
+  format: string;
+  storage_uri: string;
+  created_by: string;
+  created_at: string | null;
+};
+
+export type DocumentAuditData = {
+  document_id: string;
+  corrections: AuditCorrectionData[];
+  exports: AuditExportData[];
+};
+
 type EnvelopeError = {
   code?: string;
   message?: string;
@@ -97,6 +120,20 @@ export async function requestDocumentExport(
   const payload = (await response.json()) as EnvelopeResponse<ExportArtifactData>;
   if (!response.ok || !payload.data) {
     throw new Error(buildUserFacingApiError(payload.error, "Unable to create export artifact."));
+  }
+  return payload.data;
+}
+
+export async function fetchDocumentAudit(
+  apiBaseUrl: string,
+  documentId: string,
+): Promise<DocumentAuditData> {
+  const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/audit`, {
+    method: "GET",
+  });
+  const payload = (await response.json()) as EnvelopeResponse<DocumentAuditData>;
+  if (!response.ok || !payload.data) {
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to load audit history."));
   }
   return payload.data;
 }

@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   confidenceForPath,
+  fetchDocumentAudit,
   fetchDocumentExtraction,
   flattenEditableFields,
   patchDocumentExtraction,
   requestDocumentExport,
+  type DocumentAuditData,
   type ExtractionData,
   type ExportArtifactData,
   type ExportFormat,
@@ -41,6 +43,7 @@ export default function ReviewPage() {
     xlsx: "",
   });
   const [artifactsByFormat, setArtifactsByFormat] = useState<Partial<Record<ExportFormat, ExportArtifactData>>>({});
+  const [audit, setAudit] = useState<DocumentAuditData | null>(null);
 
   useEffect(() => {
     const initialDocumentId = searchParams.get("documentId");
@@ -74,6 +77,18 @@ export default function ReviewPage() {
         }
       });
 
+    fetchDocumentAudit(API_BASE_URL, initialDocumentId)
+      .then((result) => {
+        if (!cancelled) {
+          setAudit(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAudit(null);
+        }
+      });
+
     return () => {
       cancelled = true;
     };
@@ -94,9 +109,12 @@ export default function ReviewPage() {
       const result = await fetchDocumentExtraction(API_BASE_URL, documentId);
       setExtraction(result);
       setDraftPayload(result.structured_payload);
+      const auditResult = await fetchDocumentAudit(API_BASE_URL, documentId);
+      setAudit(auditResult);
     } catch (error) {
       setExtraction(null);
       setDraftPayload({});
+      setAudit(null);
       setErrorMessage(error instanceof Error ? error.message : "Unable to load extraction.");
     } finally {
       setIsLoading(false);
@@ -223,6 +241,8 @@ export default function ReviewPage() {
       };
       setExtraction(nextExtraction);
       setDraftPayload(result.structured_payload);
+      const auditResult = await fetchDocumentAudit(API_BASE_URL, activeDocumentId);
+      setAudit(auditResult);
       setSaveMessageByPath((current) => ({ ...current, [path]: "Saved" }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save field.";
@@ -248,6 +268,8 @@ export default function ReviewPage() {
     try {
       const artifact = await requestDocumentExport(API_BASE_URL, activeDocumentId, format);
       setArtifactsByFormat((current) => ({ ...current, [format]: artifact }));
+      const auditResult = await fetchDocumentAudit(API_BASE_URL, activeDocumentId);
+      setAudit(auditResult);
       setExportMessageByFormat((current) => ({
         ...current,
         [format]: isDownloadableUrl(artifact.storage_uri)
@@ -422,6 +444,44 @@ export default function ReviewPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+              <div className="panel export-panel">
+                <h3>Audit History</h3>
+                <p className="empty-note">Recent corrections and export events for this document.</p>
+                <div className="audit-columns">
+                  <div>
+                    <h4>Corrections ({audit?.corrections.length ?? 0})</h4>
+                    {audit && audit.corrections.length > 0 ? (
+                      <ul className="upload-list">
+                        {audit.corrections.map((entry) => (
+                          <li key={entry.id} className="upload-row">
+                            <div className="upload-file">{entry.field_path}</div>
+                            <div className="upload-meta">{entry.corrected_by}</div>
+                            <div className="upload-message">{entry.corrected_at ?? "-"}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="empty-note">No correction events yet.</p>
+                    )}
+                  </div>
+                  <div>
+                    <h4>Exports ({audit?.exports.length ?? 0})</h4>
+                    {audit && audit.exports.length > 0 ? (
+                      <ul className="upload-list">
+                        {audit.exports.map((entry) => (
+                          <li key={entry.id} className="upload-row">
+                            <div className="upload-file">{entry.format.toUpperCase()}</div>
+                            <div className="upload-meta">{entry.created_by}</div>
+                            <div className="upload-message">{entry.created_at ?? "-"}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="empty-note">No export events yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
               <pre className="review-json">{JSON.stringify(draftPayload, null, 2)}</pre>

@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-055)
+Last updated: 2026-02-15 (updated after T-056)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -99,6 +99,7 @@ Completed:
 44. `T-053`: In-process metrics instrumentation added with `/metrics` endpoint exposing API request/error/latency metrics, queue depth snapshots, and worker job outcome counters (`processed`, `failed`, `review_required`).
 45. `T-054`: Alert threshold evaluation added for repeated failures, queue backlog, and API error rate (`/alerts` + embedded alerts in `/metrics`) with env-configurable thresholds and tests.
 46. `T-055`: API rate limiting and abuse guardrails added for `/api/*` routes with per-subject windowed limits, upload-specific threshold, structured `429` responses (`RATE_LIMITED`/`ABUSE_BLOCKED`), and `Retry-After` support.
+47. `T-056`: Document audit-log view support added via `GET /api/documents/{id}/audit` (correction + export event history), with review-page UI panel showing correction/export timelines and refresh-on-save/export behavior.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -108,10 +109,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-056` Add audit log views for correction and export events.
-2. `T-057` Create staging config profile for managed Supabase Postgres and Redis.
-3. `T-058` Implement storage backend switch test (`local` -> `s3`).
-4. `T-059` Create local-to-cloud migration runbook.
+1. `T-057` Create staging config profile for managed Supabase Postgres and Redis.
+2. `T-058` Implement storage backend switch test (`local` -> `s3`).
+3. `T-059` Create local-to-cloud migration runbook.
+4. `T-060` Run pilot with 5 to 10 target users and collect workflow metrics.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -217,6 +218,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 48. `T-053` metrics instrumentation checks passed on `2026-02-15`: new metrics endpoint/counter tests in `backend/tests/test_metrics.py` passed, queueing instrumentation remained green in `backend/tests/test_queueing.py`, and full backend suite passed (`111` tests).
 49. `T-054` alert-threshold checks passed on `2026-02-15`: new alert evaluation module (`svandoc_backend.alerts`) and endpoint coverage in `backend/tests/test_alerts.py` passed, and full backend suite passed (`114` tests).
 50. `T-055` rate-limit/abuse guardrail checks passed on `2026-02-15`: new middleware + limiter coverage in `backend/tests/test_rate_limit.py` passed, and full backend suite passed (`117` tests).
+51. `T-056` audit-log checks passed on `2026-02-15`: new endpoint coverage in `backend/tests/test_audit_endpoint.py` passed; full backend suite passed (`119` tests); frontend `typecheck`, `lint`, and `test` passed with review page audit UI wiring.
 
 ## 11) Update Protocol For Future Sessions
 

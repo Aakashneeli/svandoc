@@ -414,6 +414,71 @@ async def get_document_extraction(
     )
 
 
+@app.get("/api/documents/{document_id}/audit")
+async def get_document_audit_log(
+    request: Request,
+    document_id: str,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor", "viewer"})
+    if auth_error is not None:
+        return auth_error
+
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    corrections = (
+        db.query(UserCorrection)
+        .filter(UserCorrection.document_id == document_id)
+        .order_by(UserCorrection.corrected_at.desc())
+        .all()
+    )
+    exports = (
+        db.query(ExportArtifact)
+        .filter(ExportArtifact.document_id == document_id)
+        .order_by(ExportArtifact.created_at.desc())
+        .all()
+    )
+
+    return success_envelope(
+        request,
+        data={
+            "document_id": document_id,
+            "corrections": [
+                {
+                    "id": str(correction.id),
+                    "field_path": str(correction.field_path),
+                    "old_value": correction.old_value,
+                    "new_value": correction.new_value,
+                    "corrected_by": str(correction.corrected_by),
+                    "corrected_at": _iso_timestamp(correction.corrected_at),
+                }
+                for correction in corrections
+            ],
+            "exports": [
+                {
+                    "id": str(artifact.id),
+                    "format": str(artifact.format),
+                    "storage_uri": str(artifact.storage_uri),
+                    "created_by": str(artifact.created_by),
+                    "created_at": _iso_timestamp(artifact.created_at),
+                }
+                for artifact in exports
+            ],
+        },
+    )
+
+
 @app.patch("/api/documents/{document_id}/extraction")
 async def patch_document_extraction(
     request: Request,
