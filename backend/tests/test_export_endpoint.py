@@ -18,8 +18,10 @@ from svandoc_backend.cloud_connectors import CloudConnectorError, CloudUploadRes
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
+from svandoc_backend.models.xero_sync_log import XeroSyncLog
 from svandoc_backend.google_sheets_export import GoogleSheetsExportResult
 from svandoc_backend.quickbooks_connector import QuickBooksConnectorError, QuickBooksExportResult
+from svandoc_backend.xero_connector import XeroConnectorError, XeroExportResult, XeroSyncAttempt
 
 
 class ExportEndpointTests(unittest.TestCase):
@@ -426,6 +428,120 @@ class ExportEndpointTests(unittest.TestCase):
         assert artifact is not None
         self.assertEqual(artifact.delivery_status, "failed")
         self.assertEqual(artifact.storage_uri, "failed://quickbooks")
+
+    def test_export_xero_persists_artifact_and_sync_logs(self) -> None:
+        document_id = "doc-export-xero"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.export_to_xero") as mocked_export:
+            mocked_export.return_value = XeroExportResult(
+                tenant_id="tenant-1",
+                invoice_id="invoice-500",
+                storage_uri="xero://tenant-1/invoice-500",
+                attempts=[
+                    XeroSyncAttempt(
+                        attempt_number=1,
+                        sync_status="synced",
+                        status_code=200,
+                        error_message=None,
+                        external_reference="invoice-500",
+                    )
+                ],
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "xero",
+                    "xero_access_token": "token-value",
+                    "xero_tenant_id": "tenant-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "xero")
+        self.assertEqual(data["storage_uri"], "xero://tenant-1/invoice-500")
+
+        session = self.SessionTesting()
+        try:
+            logs = (
+                session.query(XeroSyncLog)
+                .filter(XeroSyncLog.document_id == document_id)
+                .order_by(XeroSyncLog.attempt_number.asc())
+                .all()
+            )
+        finally:
+            session.close()
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0].sync_status, "synced")
+        self.assertEqual(logs[0].external_reference, "invoice-500")
+
+    def test_export_xero_failure_persists_failed_artifact_and_retry_logs(self) -> None:
+        document_id = "doc-export-xero-failed"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.export_to_xero") as mocked_export:
+            mocked_export.side_effect = XeroConnectorError(
+                "xero_export_failed:http_status_429",
+                attempts=[
+                    XeroSyncAttempt(
+                        attempt_number=1,
+                        sync_status="retrying",
+                        status_code=429,
+                        error_message="http_status_429",
+                    ),
+                    XeroSyncAttempt(
+                        attempt_number=2,
+                        sync_status="failed",
+                        status_code=429,
+                        error_message="http_status_429",
+                    ),
+                ],
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "xero",
+                    "xero_access_token": "token-value",
+                    "xero_tenant_id": "tenant-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 502)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "EXPORT_DELIVERY_FAILED")
+        artifact_id = payload["error"]["details"]["artifact_id"]
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, artifact_id)
+            logs = (
+                session.query(XeroSyncLog)
+                .filter(XeroSyncLog.document_id == document_id)
+                .order_by(XeroSyncLog.attempt_number.asc())
+                .all()
+            )
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.delivery_status, "failed")
+        self.assertEqual(artifact.storage_uri, "failed://xero")
+        self.assertEqual(len(logs), 2)
+        self.assertEqual(logs[0].sync_status, "retrying")
+        self.assertEqual(logs[1].sync_status, "failed")
+
+    def test_export_xero_requires_required_fields(self) -> None:
+        document_id = "doc-export-xero-validation"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "xero"},
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
 
     def test_export_returns_404_when_document_missing(self) -> None:
         response = self.client.post(

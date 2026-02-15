@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 from copy import deepcopy
@@ -46,6 +47,7 @@ from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
+from svandoc_backend.models.xero_sync_log import XeroSyncLog
 from svandoc_backend.queueing import enqueue_processing_job
 from svandoc_backend.quickbooks_connector import QuickBooksConnectorError, export_to_quickbooks
 from svandoc_backend.rate_limit import rate_limiter, rate_limit_subject, should_rate_limit_path
@@ -57,6 +59,7 @@ from svandoc_backend.uploads import (
     validate_upload,
 )
 from svandoc_backend.webhooks import deliver_webhook_event
+from svandoc_backend.xero_connector import XeroConnectorError, XeroSyncAttempt, export_to_xero
 
 app = FastAPI(
     title="svanDoc Backend API",
@@ -205,6 +208,8 @@ class ExportRequest(BaseModel):
     cloud_filename: str | None = None
     quickbooks_access_token: str | None = None
     quickbooks_realm_id: str | None = None
+    xero_access_token: str | None = None
+    xero_tenant_id: str | None = None
 
 
 def _iso_timestamp(value: datetime | None) -> str | None:
@@ -261,6 +266,35 @@ def _set_path_value(payload: Any, field_path: str, value: Any) -> bool:
 
 def _normalize_export_format(raw_format: str) -> str:
     return (raw_format or "").strip().lower()
+
+
+def _xero_idempotency_key(document_id: str, payload: dict[str, Any]) -> str:
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    raw = f"{document_id}:{serialized}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()[:64]
+
+
+def _persist_xero_sync_logs(
+    db: Session,
+    *,
+    artifact_id: str,
+    document_id: str,
+    idempotency_key: str,
+    attempts: list[XeroSyncAttempt],
+) -> None:
+    for attempt in attempts:
+        db.add(
+            XeroSyncLog(
+                id=str(uuid4()),
+                artifact_id=artifact_id,
+                document_id=document_id,
+                idempotency_key=idempotency_key,
+                attempt_number=int(attempt.attempt_number),
+                sync_status=str(attempt.sync_status),
+                external_reference=attempt.external_reference,
+                error_message=attempt.error_message,
+            )
+        )
 
 
 def _parse_iso_datetime(value: str) -> datetime:
@@ -802,7 +836,17 @@ async def export_document(
         return auth_error
 
     export_format = _normalize_export_format(export_request.format)
-    supported_formats = ["json", "csv", "xlsx", "gsheets", "gdrive", "onedrive", "dropbox", "quickbooks"]
+    supported_formats = [
+        "json",
+        "csv",
+        "xlsx",
+        "gsheets",
+        "gdrive",
+        "onedrive",
+        "dropbox",
+        "quickbooks",
+        "xero",
+    ]
     if export_format not in supported_formats:
         return JSONResponse(
             status_code=400,
@@ -1037,6 +1081,89 @@ async def export_document(
                 ),
             )
         storage_uri = connector_result.storage_uri
+    elif export_format == "xero":
+        xero_access_token = (export_request.xero_access_token or "").strip()
+        xero_tenant_id = (export_request.xero_tenant_id or "").strip()
+        missing_fields: list[str] = []
+        if not xero_access_token:
+            missing_fields.append("xero_access_token")
+        if not xero_tenant_id:
+            missing_fields.append("xero_tenant_id")
+        if missing_fields:
+            return JSONResponse(
+                status_code=400,
+                content=error_envelope(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="Xero export requires access token and tenant ID.",
+                    details={"missing_fields": missing_fields},
+                    retryable=False,
+                ),
+            )
+        idempotency_key = _xero_idempotency_key(document_id, payload)
+        try:
+            connector_result = export_to_xero(
+                access_token=xero_access_token,
+                tenant_id=xero_tenant_id,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                api_base_url=(os.getenv("XERO_API_BASE_URL", "https://api.xero.com/api.xro/2.0").strip() or "https://api.xero.com/api.xro/2.0"),
+            )
+            storage_uri = connector_result.storage_uri
+            _persist_xero_sync_logs(
+                db,
+                artifact_id=artifact_id,
+                document_id=document_id,
+                idempotency_key=idempotency_key,
+                attempts=connector_result.attempts,
+            )
+        except XeroConnectorError as exc:
+            delivery_status = "failed"
+            storage_uri = "failed://xero"
+            created_by = request.headers.get("x-user-id", "local-user")
+            created_at = datetime.now(timezone.utc)
+            db.add(
+                ExportArtifact(
+                    id=artifact_id,
+                    document_id=document_id,
+                    format=export_format,
+                    storage_uri=storage_uri,
+                    delivery_status=delivery_status,
+                    created_by=created_by,
+                    created_at=created_at,
+                )
+            )
+            _persist_xero_sync_logs(
+                db,
+                artifact_id=artifact_id,
+                document_id=document_id,
+                idempotency_key=idempotency_key,
+                attempts=exc.attempts,
+            )
+            db.commit()
+            deliver_webhook_event(
+                db,
+                event_type="export.created",
+                data={
+                    "artifact_id": artifact_id,
+                    "document_id": document_id,
+                    "format": export_format,
+                    "storage_uri": storage_uri,
+                    "delivery_status": delivery_status,
+                    "created_by": created_by,
+                    "created_at": _iso_timestamp(created_at),
+                },
+            )
+            return JSONResponse(
+                status_code=502,
+                content=error_envelope(
+                    request,
+                    code="EXPORT_DELIVERY_FAILED",
+                    message="Xero export failed.",
+                    details={"connector": "xero", "reason": str(exc), "artifact_id": artifact_id},
+                    retryable=True,
+                ),
+            )
     else:
         try:
             storage_backend = get_storage_backend()

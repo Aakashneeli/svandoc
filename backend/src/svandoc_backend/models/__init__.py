@@ -7,6 +7,7 @@ from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.models.webhook_delivery_log import WebhookDeliveryLog
+from svandoc_backend.models.xero_sync_log import XeroSyncLog
 
 __all__ = [
     "Document",
@@ -16,4 +17,5 @@ __all__ = [
     "ExportArtifact",
     "DocumentDeletionEvent",
     "WebhookDeliveryLog",
+    "XeroSyncLog",
 ]

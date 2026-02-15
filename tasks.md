@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-067)
+Last updated: 2026-02-15 (through T-068)
 
 ## How to use this file
 
@@ -85,7 +85,7 @@ Last updated: 2026-02-15 (through T-067)
 | T-065 | P2 | [DONE 2026-02-15] Build Zapier integration using webhook/API triggers and actions | T-064 | Zapier app supports trigger on completion and action to fetch results | Codex |
 | T-066 | P2 | [DONE 2026-02-15] Build Make.com integration templates and connection guide | T-064 | Make templates run end-to-end for upload and export workflows | Codex |
 | T-067 | P2 | [DONE 2026-02-15] Implement QuickBooks Online connector for invoice/receipt payload sync | T-061, T-002 | Validated mapping for vendors, amounts, taxes, and references | Codex |
-| T-068 | P2 | Implement Xero connector with sync status and retry handling | T-067 | Xero sync works with idempotent retries and reconciliation logs | Unassigned |
+| T-068 | P2 | [DONE 2026-02-15] Implement Xero connector with sync status and retry handling | T-067 | Xero sync works with idempotent retries and reconciliation logs | Codex |
 | T-069 | P2 | Implement phased Sage/Tally connector strategy | T-061, T-036 | Sage integration path and Tally import package delivered with docs | Unassigned |
 | T-070 | P2 | Implement email intake with workspace-specific ingestion address | T-014, T-018 | Forwarded emails create document jobs with parsing safeguards | Unassigned |
 | T-071 | P2 | Launch public REST API with API keys and scoped permissions | T-055, T-030, T-031, T-036 | External clients can securely access document/job/extraction/export endpoints | Unassigned |

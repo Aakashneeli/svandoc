@@ -12,7 +12,7 @@ class ExportArtifact(Base):
     __tablename__ = "export_artifacts"
     __table_args__ = (
         CheckConstraint(
-            "format IN ('csv', 'xlsx', 'json', 'gsheets', 'gdrive', 'onedrive', 'dropbox', 'quickbooks')",
+            "format IN ('csv', 'xlsx', 'json', 'gsheets', 'gdrive', 'onedrive', 'dropbox', 'quickbooks', 'xero')",
             name="ck_export_artifacts_format_valid",
         ),
         CheckConstraint(
