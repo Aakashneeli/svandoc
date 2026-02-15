@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
@@ -31,6 +32,14 @@ app = FastAPI(
     title="svanDoc Backend API",
     version=__version__,
 )
+
+
+def _iso_timestamp(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def queue_backend_mode() -> str:
@@ -104,6 +113,47 @@ async def ready(request: Request, db: Session = Depends(get_db_session)) -> dict
             "service": "svandoc-backend",
             "status": "ready",
             "checks": checks,
+        },
+    )
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_status(
+    request: Request,
+    job_id: str,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    job = db.get(Job, job_id)
+    if job is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="JOB_NOT_FOUND",
+                message="Requested job does not exist.",
+                details={"job_id": job_id},
+                retryable=False,
+            ),
+        )
+
+    return success_envelope(
+        request,
+        data={
+            "job_id": str(job.id),
+            "document_id": str(job.document_id),
+            "status": str(job.status),
+            "attempt_count": int(job.attempt_count),
+            "started_at": _iso_timestamp(job.started_at),
+            "finished_at": _iso_timestamp(job.finished_at),
+            "created_at": _iso_timestamp(job.created_at),
+            "error": (
+                {
+                    "code": str(job.error_code),
+                    "message": str(job.error_message),
+                }
+                if job.error_code or job.error_message
+                else None
+            ),
         },
     )
 

@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-029)
+Last updated: 2026-02-15 (updated after T-030)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -73,19 +73,20 @@ Completed:
 18. `T-027`: field-level confidence map generator added and now persisted for all extractable canonical fields with overall score.
 19. `T-028`: normalization validation rules added for totals/date/currency consistency with actionable warnings and review-required escalation.
 20. `T-029`: extraction persistence finalized with canonical schema version (`1.0.0`) and synchronized review flags/confidence in DB rows.
-21. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
-22. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
-23. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
+21. `T-030`: `GET /api/jobs/{job_id}` endpoint added with status/attempt/timestamps/error details and `JOB_NOT_FOUND` handling.
+22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-030` Implement `GET /api/jobs/{job_id}` endpoint.
-2. `T-031` Implement `GET /api/documents/{id}/extraction` endpoint.
-3. `T-032` Implement correction endpoint (`PATCH /extraction`).
-4. `T-033` Implement export service for `JSON`.
+1. `T-031` Implement `GET /api/documents/{id}/extraction` endpoint.
+2. `T-032` Implement correction endpoint (`PATCH /extraction`).
+3. `T-033` Implement export service for `JSON`.
+4. `T-034` Implement export service for `CSV`.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -165,6 +166,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 22. `T-027` field confidence map tests and worker persistence path passed with full backend suite (`65` tests) on `2026-02-15`.
 23. `T-028` validation-rule tests and queue review-flag escalation passed with full backend suite (`70` tests) on `2026-02-15`.
 24. `T-029` extraction persistence assertions passed for schema version/review flag synchronization with full backend suite (`70` tests) on `2026-02-15`.
+25. `T-030` job status endpoint tests (success/failed/not-found) passed with full backend suite (`73` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 
