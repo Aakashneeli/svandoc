@@ -30,6 +30,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         Base.metadata.create_all(self.engine)
 
         self.previous_queue_backend = os.environ.get("QUEUE_BACKEND")
+        self.previous_ocr_default_model = os.environ.get("OCR_DEFAULT_MODEL")
         self.previous_task_always_eager = bool(celery_app.conf.task_always_eager)
         self.previous_job_session_factory = JOB_SESSION_FACTORY
 
@@ -41,6 +42,10 @@ class QueueingIntegrationTests(unittest.TestCase):
             os.environ.pop("QUEUE_BACKEND", None)
         else:
             os.environ["QUEUE_BACKEND"] = self.previous_queue_backend
+        if self.previous_ocr_default_model is None:
+            os.environ.pop("OCR_DEFAULT_MODEL", None)
+        else:
+            os.environ["OCR_DEFAULT_MODEL"] = self.previous_ocr_default_model
 
         queueing.JOB_SESSION_FACTORY = self.previous_job_session_factory
         celery_app.conf.task_always_eager = self.previous_task_always_eager
@@ -179,6 +184,33 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(job)
         assert job is not None
         self.assertEqual(job.status, "review_required")
+
+    def test_process_document_job_can_use_chandra_fallback_adapter(self) -> None:
+        job_id = "job-chandra-fallback"
+        os.environ["OCR_DEFAULT_MODEL"] = "chandra"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    return_value=object(),
+                )
+            )
+            dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            chandra_extract = stack.enter_context(patch("svandoc_backend.queueing.ChandraOCRAdapter.extract"))
+            chandra_extract.return_value = OCRExtractionResult(
+                model="chandra",
+                raw_text="CHANDRA RAW",
+                structured_payload={"line_items": [{"description": "Part A", "amount": 40.0}]},
+                confidence_map={"line_items": [{"description": 0.9, "amount": 0.87}]},
+                review_required=False,
+            )
+
+            result = process_document_job(job_id, request_id="req-chandra")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertFalse(dots_extract.called)
+        self.assertTrue(chandra_extract.called)
 
 
 if __name__ == "__main__":

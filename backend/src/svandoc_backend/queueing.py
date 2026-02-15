@@ -9,6 +9,7 @@ from uuid import uuid4
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
 
+from svandoc_backend.chandra_ocr import ChandraOCRAdapter
 from svandoc_backend.db import SessionLocal
 from svandoc_backend.dots_ocr import DotsOCRAdapter
 from svandoc_backend.job_state_machine import can_transition, transition_job_status
@@ -21,6 +22,7 @@ from svandoc_backend.worker_logging import emit_worker_log
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 DEFAULT_DOTS_MODEL = "dots.ocr"
+DEFAULT_CHANDRA_MODEL = "chandra"
 
 JOB_SESSION_FACTORY: sessionmaker[Session] = SessionLocal
 
@@ -47,6 +49,12 @@ def _broker_url() -> str:
 def _dots_model_name() -> str:
     value = os.getenv("OCR_DEFAULT_MODEL", DEFAULT_DOTS_MODEL).strip()
     return value or DEFAULT_DOTS_MODEL
+
+
+def _choose_ocr_adapter(model_name: str, client: object) -> DotsOCRAdapter | ChandraOCRAdapter:
+    if model_name.lower() == DEFAULT_CHANDRA_MODEL:
+        return ChandraOCRAdapter(client=client, model_name=model_name)
+    return DotsOCRAdapter(client=client, model_name=model_name)
 
 
 def _resolve_document_path(storage_uri: str) -> Path:
@@ -154,8 +162,9 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
         raw_content = _load_document_bytes(document)
         preprocessed = preprocess_image_content(raw_content, str(document.mime_type))
         vllm_client = build_vllm_client_from_env()
-        dots_adapter = DotsOCRAdapter(client=vllm_client, model_name=_dots_model_name())
-        extraction = dots_adapter.extract(
+        model_name = _dots_model_name()
+        ocr_adapter = _choose_ocr_adapter(model_name, vllm_client)
+        extraction = ocr_adapter.extract(
             document_content=preprocessed.content,
             mime_type=preprocessed.mime_type,
             filename=str(document.filename),

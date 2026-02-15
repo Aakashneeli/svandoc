@@ -37,7 +37,7 @@ Last updated: 2026-02-15 (through T-105)
 | T-021 | P0 | [DONE 2026-02-15] Implement image preprocessing (deskew, denoise, orientation) | T-020 | Preprocessing runs on sample corpus with expected output | Codex |
 | T-022 | P0 | [DONE 2026-02-15] Build vLLM client module with timeout/retry policies | T-020 | Client handles transient failures and metrics hooks | Codex |
 | T-023 | P0 | [DONE 2026-02-15] Integrate `dots.ocr` extraction adapter | T-022 | End-to-end extraction works for baseline samples | Codex |
-| T-024 | P0 | Integrate `Chandra` fallback extraction adapter | T-022 | Fallback path callable and tested on hard samples | Unassigned |
+| T-024 | P0 | [DONE 2026-02-15] Integrate `Chandra` fallback extraction adapter | T-022 | Fallback path callable and tested on hard samples | Codex |
 | T-025 | P0 | Implement routing rules from `dots.ocr` to fallback | T-023, T-024 | Routing triggers based on confidence/layout thresholds | Unassigned |
 | T-026 | P0 | Normalize raw OCR output into canonical schema | T-023, T-024, T-002 | Normalization handles required schema fields | Unassigned |
 | T-027 | P0 | Implement field-level confidence scoring map | T-026 | Confidence values emitted for all extractable fields | Unassigned |
