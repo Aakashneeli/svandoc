@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-16 (updated after T-070)
+Last updated: 2026-02-16 (updated after T-071)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -115,6 +115,7 @@ Completed:
 59. `T-068`: Xero connector added for export sync (`format=xero`) with idempotent retry handling (`Idempotency-Key`), per-attempt reconciliation logging in `xero_sync_logs`, migration `20260215_0010`, and runbook (`docs/xero-connector.md`).
 60. `T-069`: Phased Sage/Tally connector strategy implemented with export endpoint support (`format=sage|tally`), Sage phase-plan artifact generation, Tally import package generation (`manifest.json`, `voucher.xml`, `summary.csv`), migration `20260216_0011`, and runbook (`docs/sage-tally-connectors.md`).
 61. `T-070`: Email intake flow added at `POST /api/documents/email-intake` with workspace-specific ingestion address validation, RFC822 attachment parsing, sender-domain allow-list + attachment-count safeguards, upload validation/dedup reuse, and runbook/env contract updates (`docs/email-intake.md`, `.env.example`).
+62. `T-071`: Public REST API launched with API-key and scope enforcement (`PUBLIC_API_KEYS_JSON`) via new `/api/public/*` endpoints for upload, job status, extraction fetch, and export; auth helper module added (`svandoc_backend.api_keys`) with explicit `401`/`403` behavior and runbook (`docs/public-api.md`).
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -124,10 +125,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-071` Launch public REST API with API keys and scoped permissions.
-2. `T-072` Publish developer docs and starter SDKs (TypeScript and Python).
-3. `T-073` Implement custom extraction templates (schema builder + field mapping UI).
-4. `T-074` Implement template learning from user corrections (opt-in).
+1. `T-072` Publish developer docs and starter SDKs (TypeScript and Python).
+2. `T-073` Implement custom extraction templates (schema builder + field mapping UI).
+3. `T-074` Implement template learning from user corrections (opt-in).
+4. `T-075` Implement advanced table extraction (multi-page stitching, merged cells).
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -248,6 +249,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 63. `T-068` Xero checks passed on `2026-02-15`: `backend/tests/test_xero_connector.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed (30 tests); migration validation reached `20260215_0010` head and verified `xero_sync_logs` indexes + export-format constraint; full backend suite passed (`160` tests).
 64. `T-069` Sage/Tally checks passed on `2026-02-16`: `backend/tests/test_sage_connector.py`, `backend/tests/test_tally_connector.py`, `backend/tests/test_export_endpoint.py`, and `backend/tests/test_core_schema.py` passed (`31` tests via `unittest`); Alembic migration validation reached `20260216_0011` head and verified updated export-format constraint includes `sage` and `tally`.
 65. `T-070` email-intake checks passed on `2026-02-16`: `backend/tests/test_email_intake.py`, `backend/tests/test_upload_endpoint.py`, and `backend/tests/test_export_endpoint.py` passed (`34` tests via `unittest`) validating workspace address checks, sender-domain guardrails, attachment-limit safeguards, and end-to-end document/job creation from forwarded `.eml` attachments.
+66. `T-071` public API checks passed on `2026-02-16`: `backend/tests/test_public_api.py`, `backend/tests/test_upload_endpoint.py`, `backend/tests/test_job_status_endpoint.py`, `backend/tests/test_extraction_endpoint.py`, and `backend/tests/test_export_endpoint.py` passed (`40` tests via `unittest`) validating API-key auth, scoped permission enforcement, and external upload -> job -> extraction -> export flows.
 
 ## 11) Update Protocol For Future Sessions
 

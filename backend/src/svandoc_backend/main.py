@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from svandoc_backend import __version__
 from svandoc_backend.alerts import evaluate_alerts
+from svandoc_backend.api_keys import require_api_key_scope
 from svandoc_backend.auth import require_roles
 from svandoc_backend.cloud_connectors import (
     CloudConnectorError,
@@ -570,6 +571,19 @@ async def get_job_status(
     )
 
 
+@app.get("/api/public/jobs/{job_id}")
+async def get_public_job_status(
+    request: Request,
+    job_id: str,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    principal, auth_error = require_api_key_scope(request, "jobs:read")
+    if auth_error is not None:
+        return auth_error
+    _ = principal
+    return await get_job_status(request, job_id=job_id, db=db)
+
+
 @app.get("/api/documents/{document_id}/extraction")
 async def get_document_extraction(
     request: Request,
@@ -622,6 +636,19 @@ async def get_document_extraction(
             "updated_at": _iso_timestamp(extraction.updated_at),
         },
     )
+
+
+@app.get("/api/public/documents/{document_id}/extraction")
+async def get_public_document_extraction(
+    request: Request,
+    document_id: str,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    principal, auth_error = require_api_key_scope(request, "extractions:read")
+    if auth_error is not None:
+        return auth_error
+    _ = principal
+    return await get_document_extraction(request, document_id=document_id, db=db)
 
 
 @app.get("/api/documents/{document_id}/audit")
@@ -1350,6 +1377,25 @@ async def export_document(
     )
 
 
+@app.post("/api/public/documents/{document_id}/export")
+async def export_public_document(
+    request: Request,
+    document_id: str,
+    export_request: ExportRequest,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    principal, auth_error = require_api_key_scope(request, "exports:write")
+    if auth_error is not None:
+        return auth_error
+    _ = principal
+    return await export_document(
+        request=request,
+        document_id=document_id,
+        export_request=export_request,
+        db=db,
+    )
+
+
 @app.post("/api/documents/upload")
 async def upload_documents(
     request: Request,
@@ -1526,6 +1572,25 @@ async def upload_documents(
             "document_ids": document_ids,
             "job_ids": job_ids,
         },
+    )
+
+
+@app.post("/api/public/documents/upload")
+async def upload_public_documents(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    doc_type_hint: str | None = Form(None),
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    principal, auth_error = require_api_key_scope(request, "documents:write")
+    if auth_error is not None:
+        return auth_error
+    _ = principal
+    return await upload_documents(
+        request=request,
+        files=files,
+        doc_type_hint=doc_type_hint,
+        db=db,
     )
 
 
