@@ -106,3 +106,21 @@ export function flattenEditableFields(payload: Record<string, unknown>): Editabl
   flattenObjectFields(payload, "", output);
   return output.filter((item) => item.path.length > 0);
 }
+
+export function confidenceForPath(
+  confidenceMap: Record<string, unknown> | null | undefined,
+  path: string,
+): number | null {
+  if (!confidenceMap || typeof confidenceMap !== "object") {
+    return null;
+  }
+  const fields = (confidenceMap as { fields?: unknown }).fields;
+  if (!fields || typeof fields !== "object") {
+    return null;
+  }
+  const value = (fields as Record<string, unknown>)[path];
+  if (typeof value !== "number") {
+    return null;
+  }
+  return value;
+}

@@ -59,7 +59,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-039 | P0 | [DONE 2026-02-15] Build document list page with status and search filters | T-037, T-030 | Documents searchable by status/date/vendor metadata | Codex |
 | T-040 | P0 | [DONE 2026-02-15] Build review page side-by-side document and extracted data | T-039, T-031 | Review page loads document + extracted payload correctly | Codex |
 | T-041 | P0 | [DONE 2026-02-15] Implement inline edit UI and correction submission | T-040, T-032 | Edited fields save and reflect in UI state | Codex |
-| T-042 | P0 | Implement confidence highlight and review-required indicators | T-040, T-027 | Low-confidence fields clearly visible and filterable | Unassigned |
+| T-042 | P0 | [DONE 2026-02-15] Implement confidence highlight and review-required indicators | T-040, T-027 | Low-confidence fields clearly visible and filterable | Codex |
 | T-043 | P0 | Implement export UI actions for JSON/CSV/XLSX | T-040, T-036 | Users can trigger and download all MVP formats | Unassigned |
 | T-044 | P0 | Add frontend validation hints and error banners | T-038, T-040 | API and validation errors are understandable for users | Unassigned |
 | T-045 | P0 | Build end-to-end smoke test: upload -> review -> export | T-043 | Automated smoke test passes on local stack | Unassigned |

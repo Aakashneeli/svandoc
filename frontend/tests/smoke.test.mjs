@@ -58,4 +58,7 @@ test("review page renders side-by-side review and extraction loading", () => {
   assert.match(reviewPage, /inline-edit-list/);
   assert.match(reviewPage, /patchDocumentExtraction/);
   assert.match(reviewPage, /Saving\.\.\.|Save/);
+  assert.match(reviewPage, /Low confidence threshold/);
+  assert.match(reviewPage, /Show low-confidence fields only/);
+  assert.match(reviewPage, /confidenceForPath/);
 });

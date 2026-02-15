@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-041)
+Last updated: 2026-02-15 (updated after T-042)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -85,6 +85,7 @@ Completed:
 30. `T-039`: Documents page implemented with vendor/file/id search, status filter, date-range filtering, and client-side filtered result list.
 31. `T-040`: Review page implemented with side-by-side document panel + extracted payload panel, including extraction loading via `GET /api/documents/{id}/extraction`.
 32. `T-041`: Inline edit controls added for primitive extraction fields with per-field save actions wired to `PATCH /api/documents/{id}/extraction`, and UI state refresh after corrections.
+33. `T-042`: Confidence UI added with threshold control, low-confidence-only filtering, and row-level highlighting tied to `confidence_map.fields` plus review-required visibility.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -94,10 +95,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-042` Implement confidence highlight and review-required indicators.
-2. `T-043` Implement export UI actions for JSON/CSV/XLSX.
-3. `T-044` Add frontend validation hints and error banners.
-4. `T-045` Build end-to-end smoke test: upload -> review -> export.
+1. `T-043` Implement export UI actions for JSON/CSV/XLSX.
+2. `T-044` Add frontend validation hints and error banners.
+3. `T-045` Build end-to-end smoke test: upload -> review -> export.
+4. `T-046` Curate benchmark dataset (invoice + receipt variants).
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -189,6 +190,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 34. `T-039` document-list checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for status/date/vendor filter controls.
 35. `T-040` review-page checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for side-by-side panel layout and extraction-loading wiring.
 36. `T-041` inline-edit checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for patch submission wiring and inline edit controls.
+37. `T-042` confidence/review-indicator checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`, including smoke assertions for threshold/filter controls and confidence-highlight wiring.
 
 ## 11) Update Protocol For Future Sessions
 

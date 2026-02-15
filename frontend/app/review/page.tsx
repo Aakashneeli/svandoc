@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  confidenceForPath,
   fetchDocumentExtraction,
   flattenEditableFields,
   patchDocumentExtraction,
@@ -24,6 +25,8 @@ export default function ReviewPage() {
   const [draftPayload, setDraftPayload] = useState<Record<string, unknown>>({});
   const [saveStateByPath, setSaveStateByPath] = useState<Record<string, "idle" | "saving">>({});
   const [saveMessageByPath, setSaveMessageByPath] = useState<Record<string, string>>({});
+  const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.8);
+  const [showLowConfidenceOnly, setShowLowConfidenceOnly] = useState(false);
 
   useEffect(() => {
     const initialDocumentId = searchParams.get("documentId");
@@ -86,7 +89,18 @@ export default function ReviewPage() {
     }
   }
 
-  const editableFields = flattenEditableFields(draftPayload);
+  const editableFields = flattenEditableFields(draftPayload).filter((field) => {
+    if (!showLowConfidenceOnly) {
+      return true;
+    }
+    const score = confidenceForPath(extraction?.confidence_map, field.path);
+    return score !== null && score < lowConfidenceThreshold;
+  });
+
+  const lowConfidenceCount = flattenEditableFields(draftPayload).filter((field) => {
+    const score = confidenceForPath(extraction?.confidence_map, field.path);
+    return score !== null && score < lowConfidenceThreshold;
+  }).length;
 
   function parseFieldInput(rawValue: string, currentValue: PrimitiveValue): PrimitiveValue {
     if (currentValue === null) {
@@ -269,14 +283,47 @@ export default function ReviewPage() {
                 <span>Review Required</span>
                 <strong>{extraction.review_required ? "yes" : "no"}</strong>
               </div>
+              <div className="confidence-controls">
+                <label className="field">
+                  Low confidence threshold
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={lowConfidenceThreshold}
+                    onChange={(event) => setLowConfidenceThreshold(Number(event.target.value))}
+                  />
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={showLowConfidenceOnly}
+                    onChange={(event) => setShowLowConfidenceOnly(event.target.checked)}
+                  />
+                  Show low-confidence fields only ({lowConfidenceCount})
+                </label>
+              </div>
               <div className="inline-edit-list">
                 {editableFields.length === 0 ? (
                   <p className="empty-note">No editable fields detected.</p>
                 ) : (
-                  editableFields.map((field) => (
-                    <div key={field.path} className="inline-edit-row">
+                  editableFields.map((field) => {
+                    const confidence = confidenceForPath(extraction?.confidence_map, field.path);
+                    const isLowConfidence = confidence !== null && confidence < lowConfidenceThreshold;
+                    return (
+                    <div
+                      key={field.path}
+                      className="inline-edit-row"
+                      data-low-confidence={isLowConfidence ? "yes" : "no"}
+                    >
                       <label className="field">
                         {field.path}
+                        {confidence !== null ? (
+                          <span className="confidence-chip" data-low-confidence={isLowConfidence ? "yes" : "no"}>
+                            confidence {confidence.toFixed(2)}
+                          </span>
+                        ) : null}
                         <input
                           type="text"
                           value={String(field.value ?? "")}
@@ -295,7 +342,8 @@ export default function ReviewPage() {
                       </button>
                       <span className="inline-edit-message">{saveMessageByPath[field.path] ?? ""}</span>
                     </div>
-                  ))
+                  );
+                  })
                 )}
               </div>
               <pre className="review-json">{JSON.stringify(draftPayload, null, 2)}</pre>
