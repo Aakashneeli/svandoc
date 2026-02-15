@@ -25,6 +25,7 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("document_deletion_events", table_names)
         self.assertIn("webhook_delivery_logs", table_names)
         self.assertIn("xero_sync_logs", table_names)
+        self.assertIn("extraction_templates", table_names)
 
     def test_documents_constraints_and_indexes_exist(self) -> None:
         unique_names = {item["name"] for item in self.inspector.get_unique_constraints("documents")}
@@ -98,6 +99,12 @@ class CoreSchemaModelTests(unittest.TestCase):
         self.assertIn("ck_xero_sync_logs_status_valid", check_names)
         self.assertIn("ix_xero_sync_logs_document_id", index_names)
         self.assertIn("ix_xero_sync_logs_created_at", index_names)
+
+    def test_extraction_templates_indexes_exist(self) -> None:
+        index_names = {item["name"] for item in self.inspector.get_indexes("extraction_templates")}
+        self.assertIn("ix_extraction_templates_team_id", index_names)
+        self.assertIn("ix_extraction_templates_doc_type", index_names)
+        self.assertIn("ix_extraction_templates_created_at", index_names)
 
 
 if __name__ == "__main__":

@@ -3,13 +3,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  applyExtractionTemplate,
   confidenceForPath,
+  createExtractionTemplate,
   fetchDocumentAudit,
   fetchDocumentExtraction,
+  listExtractionTemplates,
   flattenEditableFields,
   patchDocumentExtraction,
   requestDocumentExport,
   type DocumentAuditData,
+  type ExtractionTemplateData,
   type ExportOptions,
   type ExtractionData,
   type ExportArtifactData,
@@ -59,6 +63,14 @@ export default function ReviewPage() {
   const [cloudFilename, setCloudFilename] = useState("");
   const [artifactsByFormat, setArtifactsByFormat] = useState<Partial<Record<ExportFormat, ExportArtifactData>>>({});
   const [audit, setAudit] = useState<DocumentAuditData | null>(null);
+  const [templates, setTemplates] = useState<ExtractionTemplateData[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDocType, setTemplateDocType] = useState<"invoice" | "receipt">("invoice");
+  const [templateSchemaJson, setTemplateSchemaJson] = useState("{\"fields\":[]}");
+  const [templateMappingJson, setTemplateMappingJson] = useState("{\"vendor_name\":\"vendor.name\"}");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateMessage, setTemplateMessage] = useState("");
+  const [isTemplateBusy, setIsTemplateBusy] = useState(false);
 
   useEffect(() => {
     const initialDocumentId = searchParams.get("documentId");
@@ -103,6 +115,20 @@ export default function ReviewPage() {
           setAudit(null);
         }
       });
+    listExtractionTemplates(API_BASE_URL)
+      .then((result) => {
+        if (!cancelled) {
+          setTemplates(result);
+          if (!selectedTemplateId && result.length > 0) {
+            setSelectedTemplateId(result[0].template_id);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTemplates([]);
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -126,6 +152,11 @@ export default function ReviewPage() {
       setDraftPayload(result.structured_payload);
       const auditResult = await fetchDocumentAudit(API_BASE_URL, documentId);
       setAudit(auditResult);
+      const templateList = await listExtractionTemplates(API_BASE_URL);
+      setTemplates(templateList);
+      if (!selectedTemplateId && templateList.length > 0) {
+        setSelectedTemplateId(templateList[0].template_id);
+      }
     } catch (error) {
       setExtraction(null);
       setDraftPayload({});
@@ -328,6 +359,77 @@ export default function ReviewPage() {
     }
   }
 
+  async function handleCreateTemplate() {
+    if (!templateName.trim()) {
+      setTemplateMessage("Template name is required.");
+      return;
+    }
+    let schemaDefinition: Record<string, unknown>;
+    let fieldMapping: Record<string, string>;
+    try {
+      const parsedSchema = JSON.parse(templateSchemaJson);
+      const parsedMapping = JSON.parse(templateMappingJson);
+      if (!parsedSchema || typeof parsedSchema !== "object" || Array.isArray(parsedSchema)) {
+        setTemplateMessage("Schema definition must be a JSON object.");
+        return;
+      }
+      if (!parsedMapping || typeof parsedMapping !== "object" || Array.isArray(parsedMapping)) {
+        setTemplateMessage("Field mapping must be a JSON object.");
+        return;
+      }
+      schemaDefinition = parsedSchema as Record<string, unknown>;
+      fieldMapping = Object.fromEntries(
+        Object.entries(parsedMapping as Record<string, unknown>)
+          .filter(([, value]) => typeof value === "string")
+          .map(([key, value]) => [key, value as string]),
+      );
+    } catch {
+      setTemplateMessage("Invalid JSON for schema or mapping.");
+      return;
+    }
+
+    setIsTemplateBusy(true);
+    setTemplateMessage("");
+    try {
+      const created = await createExtractionTemplate(API_BASE_URL, {
+        name: templateName.trim(),
+        doc_type: templateDocType,
+        schema_definition: schemaDefinition,
+        field_mapping: fieldMapping,
+      });
+      const nextTemplates = [created, ...templates];
+      setTemplates(nextTemplates);
+      setSelectedTemplateId(created.template_id);
+      setTemplateMessage("Template created.");
+    } catch (error) {
+      setTemplateMessage(error instanceof Error ? error.message : "Unable to create template.");
+    } finally {
+      setIsTemplateBusy(false);
+    }
+  }
+
+  async function handleApplyTemplate() {
+    if (!activeDocumentId) {
+      setTemplateMessage("Load a document before applying a template.");
+      return;
+    }
+    if (!selectedTemplateId) {
+      setTemplateMessage("Select a template to apply.");
+      return;
+    }
+    setIsTemplateBusy(true);
+    setTemplateMessage("");
+    try {
+      const structuredPayload = await applyExtractionTemplate(API_BASE_URL, activeDocumentId, selectedTemplateId);
+      setDraftPayload(structuredPayload);
+      setTemplateMessage("Template applied to extraction payload.");
+    } catch (error) {
+      setTemplateMessage(error instanceof Error ? error.message : "Unable to apply template.");
+    } finally {
+      setIsTemplateBusy(false);
+    }
+  }
+
   return (
     <section className="page">
       <div className="hero">
@@ -460,6 +562,83 @@ export default function ReviewPage() {
                   );
                   })
                 )}
+              </div>
+
+              <div className="panel export-panel">
+                <h3>Extraction Templates</h3>
+                <p className="empty-note">Create reusable mappings and apply them to recurring document layouts.</p>
+                <div className="filter-grid">
+                  <label className="field">
+                    Template Name
+                    <input
+                      type="text"
+                      placeholder="Invoice Template"
+                      value={templateName}
+                      onChange={(event) => setTemplateName(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Document Type
+                    <select
+                      value={templateDocType}
+                      onChange={(event) => setTemplateDocType(event.target.value as "invoice" | "receipt")}
+                    >
+                      <option value="invoice">invoice</option>
+                      <option value="receipt">receipt</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="filter-grid">
+                  <label className="field">
+                    Schema Definition JSON
+                    <textarea
+                      value={templateSchemaJson}
+                      onChange={(event) => setTemplateSchemaJson(event.target.value)}
+                      rows={4}
+                    />
+                  </label>
+                  <label className="field">
+                    Field Mapping JSON
+                    <textarea
+                      value={templateMappingJson}
+                      onChange={(event) => setTemplateMappingJson(event.target.value)}
+                      rows={4}
+                    />
+                  </label>
+                </div>
+                <div className="export-actions">
+                  <button
+                    type="button"
+                    className="button-like button-accent"
+                    onClick={handleCreateTemplate}
+                    disabled={isTemplateBusy}
+                  >
+                    {isTemplateBusy ? "Saving..." : "Create Template"}
+                  </button>
+                  <label className="field">
+                    Select Template
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(event) => setSelectedTemplateId(event.target.value)}
+                    >
+                      <option value="">Select...</option>
+                      {templates.map((template) => (
+                        <option key={template.template_id} value={template.template_id}>
+                          {template.name} ({template.doc_type})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="button-like"
+                    onClick={handleApplyTemplate}
+                    disabled={isTemplateBusy}
+                  >
+                    Apply Template
+                  </button>
+                  <span className="inline-edit-message">{templateMessage}</span>
+                </div>
               </div>
 
               <div className="panel export-panel">

@@ -49,6 +49,7 @@ from svandoc_backend.metrics import metrics_snapshot, record_api_request
 from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
+from svandoc_backend.models.extraction_template import ExtractionTemplate
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.models.xero_sync_log import XeroSyncLog
@@ -218,6 +219,18 @@ class ExportRequest(BaseModel):
     xero_tenant_id: str | None = None
 
 
+class TemplateCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=128)
+    doc_type: str = Field(..., min_length=1, max_length=16)
+    schema_definition: dict[str, Any] = Field(default_factory=dict)
+    field_mapping: dict[str, str] = Field(default_factory=dict)
+    notes: str | None = None
+
+
+class TemplateApplyRequest(BaseModel):
+    template_id: str = Field(..., min_length=1)
+
+
 def _iso_timestamp(value: datetime | None) -> str | None:
     if value is None:
         return None
@@ -268,6 +281,25 @@ def _set_path_value(payload: Any, field_path: str, value: Any) -> bool:
             return True
         current = current[parsed]
     return False
+
+
+def _apply_template_mapping(
+    source_payload: dict[str, Any],
+    field_mapping: dict[str, str],
+) -> tuple[dict[str, Any], list[str]]:
+    rendered: dict[str, Any] = {}
+    missing_paths: list[str] = []
+    for target_field, source_path in field_mapping.items():
+        source_path_text = str(source_path).strip()
+        if not source_path_text:
+            missing_paths.append(str(target_field))
+            continue
+        found, value = _get_path_value(source_payload, source_path_text)
+        if not found:
+            missing_paths.append(source_path_text)
+            continue
+        rendered[str(target_field)] = value
+    return rendered, missing_paths
 
 
 def _normalize_export_format(raw_format: str) -> str:
@@ -713,6 +745,214 @@ async def get_document_audit_log(
                 }
                 for artifact in exports
             ],
+        },
+    )
+
+
+@app.post("/api/templates")
+async def create_extraction_template(
+    request: Request,
+    template_request: TemplateCreateRequest,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor"})
+    if auth_error is not None:
+        return auth_error
+
+    normalized_doc_type = template_request.doc_type.strip().lower()
+    if normalized_doc_type not in {"invoice", "receipt"}:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Template doc_type must be invoice or receipt.",
+                details={"doc_type": template_request.doc_type},
+                retryable=False,
+            ),
+        )
+    if not template_request.field_mapping:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Template field_mapping cannot be empty.",
+                details=None,
+                retryable=False,
+            ),
+        )
+
+    template_id = str(uuid4())
+    team_id = request.headers.get("x-team-id", "local-team")
+    created_by = request.headers.get("x-user-id", "local-user")
+    now = datetime.now(timezone.utc)
+    template = ExtractionTemplate(
+        id=template_id,
+        team_id=team_id,
+        name=template_request.name.strip(),
+        doc_type=normalized_doc_type,
+        schema_definition=template_request.schema_definition,
+        field_mapping={str(k): str(v) for k, v in template_request.field_mapping.items()},
+        notes=template_request.notes.strip() if isinstance(template_request.notes, str) else None,
+        is_active=True,
+        created_by=created_by,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(template)
+    db.commit()
+    return success_envelope(
+        request,
+        data={
+            "template_id": template_id,
+            "team_id": team_id,
+            "name": template.name,
+            "doc_type": template.doc_type,
+            "schema_definition": template.schema_definition,
+            "field_mapping": template.field_mapping,
+            "notes": template.notes,
+            "created_by": template.created_by,
+            "created_at": _iso_timestamp(template.created_at),
+            "updated_at": _iso_timestamp(template.updated_at),
+        },
+    )
+
+
+@app.get("/api/templates")
+async def list_extraction_templates(
+    request: Request,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor", "viewer"})
+    if auth_error is not None:
+        return auth_error
+
+    team_id = request.headers.get("x-team-id", "local-team")
+    templates = (
+        db.query(ExtractionTemplate)
+        .filter(ExtractionTemplate.team_id == team_id)
+        .order_by(ExtractionTemplate.created_at.desc())
+        .all()
+    )
+    return success_envelope(
+        request,
+        data={
+            "templates": [
+                {
+                    "template_id": str(template.id),
+                    "team_id": str(template.team_id),
+                    "name": str(template.name),
+                    "doc_type": str(template.doc_type),
+                    "schema_definition": template.schema_definition,
+                    "field_mapping": template.field_mapping,
+                    "notes": template.notes,
+                    "is_active": bool(template.is_active),
+                    "created_by": str(template.created_by),
+                    "created_at": _iso_timestamp(template.created_at),
+                    "updated_at": _iso_timestamp(template.updated_at),
+                }
+                for template in templates
+            ],
+        },
+    )
+
+
+@app.post("/api/documents/{document_id}/templates/apply")
+async def apply_extraction_template(
+    request: Request,
+    document_id: str,
+    apply_request: TemplateApplyRequest,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    auth_error = require_roles(request, {"admin", "editor"})
+    if auth_error is not None:
+        return auth_error
+
+    team_id = request.headers.get("x-team-id", "local-team")
+    template = (
+        db.query(ExtractionTemplate)
+        .filter(ExtractionTemplate.id == apply_request.template_id)
+        .filter(ExtractionTemplate.team_id == team_id)
+        .filter(ExtractionTemplate.is_active.is_(True))
+        .one_or_none()
+    )
+    if template is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="TEMPLATE_NOT_FOUND",
+                message="Requested template does not exist.",
+                details={"template_id": apply_request.template_id},
+                retryable=False,
+            ),
+        )
+
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+    extraction = (
+        db.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    )
+    if extraction is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="EXTRACTION_NOT_FOUND",
+                message="Extraction result is not available for this document.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    if str(extraction.doc_type) != str(template.doc_type):
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Template doc_type does not match extraction type.",
+                details={"template_doc_type": template.doc_type, "extraction_doc_type": extraction.doc_type},
+                retryable=False,
+            ),
+        )
+
+    payload = deepcopy(extraction.structured_payload)
+    mapped_output, missing_paths = _apply_template_mapping(
+        source_payload=payload,
+        field_mapping=template.field_mapping if isinstance(template.field_mapping, dict) else {},
+    )
+    payload["template_output"] = {
+        "template_id": str(template.id),
+        "template_name": str(template.name),
+        "schema_definition": template.schema_definition if isinstance(template.schema_definition, dict) else {},
+        "mapped_fields": mapped_output,
+        "missing_paths": missing_paths,
+        "applied_at": _iso_timestamp(datetime.now(timezone.utc)),
+    }
+    extraction.structured_payload = payload
+    extraction.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return success_envelope(
+        request,
+        data={
+            "document_id": str(document_id),
+            "template_id": str(template.id),
+            "mapped_fields": mapped_output,
+            "missing_paths": missing_paths,
+            "structured_payload": payload,
         },
     )
 

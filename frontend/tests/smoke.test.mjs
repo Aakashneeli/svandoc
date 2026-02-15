@@ -64,6 +64,11 @@ test("review page renders side-by-side review and extraction loading", () => {
   assert.match(reviewPage, /Low confidence threshold/);
   assert.match(reviewPage, /Show low-confidence fields only/);
   assert.match(reviewPage, /confidenceForPath/);
+  assert.match(reviewPage, /Extraction Templates/);
+  assert.match(reviewPage, /Create Template/);
+  assert.match(reviewPage, /Apply Template/);
+  assert.match(reviewPage, /createExtractionTemplate/);
+  assert.match(reviewPage, /applyExtractionTemplate/);
   assert.match(reviewPage, /Export Actions/);
   assert.match(reviewPage, /Generate exports or push directly to Google Sheets, Drive, OneDrive, and Dropbox/);
   assert.match(reviewPage, /format\.toUpperCase/);

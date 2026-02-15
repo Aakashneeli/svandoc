@@ -72,6 +72,20 @@ export type DocumentAuditData = {
   exports: AuditExportData[];
 };
 
+export type ExtractionTemplateData = {
+  template_id: string;
+  team_id: string;
+  name: string;
+  doc_type: string;
+  schema_definition: Record<string, unknown>;
+  field_mapping: Record<string, string>;
+  notes?: string | null;
+  is_active?: boolean;
+  created_by: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 type EnvelopeError = {
   code?: string;
   message?: string;
@@ -148,6 +162,56 @@ export async function fetchDocumentAudit(
     throw new Error(buildUserFacingApiError(payload.error, "Unable to load audit history."));
   }
   return payload.data;
+}
+
+export async function listExtractionTemplates(apiBaseUrl: string): Promise<ExtractionTemplateData[]> {
+  const response = await fetch(`${apiBaseUrl}/api/templates`, {
+    method: "GET",
+  });
+  const payload = (await response.json()) as EnvelopeResponse<{ templates: ExtractionTemplateData[] }>;
+  if (!response.ok || !payload.data) {
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to load templates."));
+  }
+  return payload.data.templates;
+}
+
+export async function createExtractionTemplate(
+  apiBaseUrl: string,
+  request: {
+    name: string;
+    doc_type: string;
+    schema_definition: Record<string, unknown>;
+    field_mapping: Record<string, string>;
+    notes?: string;
+  },
+): Promise<ExtractionTemplateData> {
+  const response = await fetch(`${apiBaseUrl}/api/templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const payload = (await response.json()) as EnvelopeResponse<ExtractionTemplateData>;
+  if (!response.ok || !payload.data) {
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to create template."));
+  }
+  return payload.data;
+}
+
+export async function applyExtractionTemplate(
+  apiBaseUrl: string,
+  documentId: string,
+  templateId: string,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/templates/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ template_id: templateId }),
+  });
+  const payload = (await response.json()) as EnvelopeResponse<{ structured_payload: Record<string, unknown> }>;
+  if (!response.ok || !payload.data) {
+    throw new Error(buildUserFacingApiError(payload.error, "Unable to apply template."));
+  }
+  return payload.data.structured_payload;
 }
 
 function isPrimitiveValue(value: unknown): value is PrimitiveValue {
