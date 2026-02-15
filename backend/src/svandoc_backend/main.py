@@ -34,6 +34,7 @@ from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.queueing import enqueue_processing_job
+from svandoc_backend.rate_limit import rate_limiter, rate_limit_subject, should_rate_limit_path
 from svandoc_backend.storage import get_storage_backend
 from svandoc_backend.uploads import (
     compute_checksum,
@@ -55,6 +56,46 @@ async def add_request_correlation(request: Request, call_next):
     request_id = request.headers.get("x-request-id", "").strip() or f"req_{uuid4().hex}"
     request.state.request_id = request_id
     started = perf_counter()
+
+    if should_rate_limit_path(request.url.path):
+        subject = rate_limit_subject(request)
+        decision = rate_limiter.evaluate(subject, request.url.path)
+        if not decision.allowed:
+            record_api_request(duration_ms=0, status_code=429)
+            response = JSONResponse(
+                status_code=429,
+                content=error_envelope(
+                    request,
+                    code=decision.code or "RATE_LIMITED",
+                    message="Too many requests. Please retry later.",
+                    details={
+                        "reason": decision.reason,
+                        "retry_after_seconds": decision.retry_after_seconds,
+                        "subject": subject,
+                    },
+                    retryable=True,
+                ),
+            )
+            response.headers["x-request-id"] = request_id
+            if decision.retry_after_seconds is not None:
+                response.headers["Retry-After"] = str(decision.retry_after_seconds)
+            api_logger.info(
+                json.dumps(
+                    {
+                        "event": "request_rate_limited",
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.url.path,
+                        "subject": subject,
+                        "reason": decision.reason,
+                        "retry_after_seconds": decision.retry_after_seconds,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+            )
+            return response
+
     api_logger.info(
         json.dumps(
             {

@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-054)
+Last updated: 2026-02-15 (through T-055)
 
 ## How to use this file
 
@@ -72,7 +72,7 @@ Last updated: 2026-02-15 (through T-054)
 | T-052 | P1 | [DONE 2026-02-15] Add structured logging sink and request correlation IDs | T-020 | Logs queryable by request and job IDs | Codex |
 | T-053 | P1 | [DONE 2026-02-15] Add metrics instrumentation (latency, queue depth, error rate) | T-020 | Metrics exposed and sampled in local dashboard | Codex |
 | T-054 | P1 | [DONE 2026-02-15] Define alert thresholds for repeated failures and backlog | T-053 | Alert rules documented and test-triggered once | Codex |
-| T-055 | P1 | Add API rate limiting and abuse guardrails | T-010 | Rate limits active and tested | Unassigned |
+| T-055 | P1 | [DONE 2026-02-15] Add API rate limiting and abuse guardrails | T-010 | Rate limits active and tested | Codex |
 | T-056 | P1 | Add audit log views for correction and export events | T-013, T-041, T-036 | Users can inspect historical edits and exports | Unassigned |
 | T-057 | P1 | Create staging config profile for managed Supabase Postgres and Redis | T-004 | Environment swap works without code changes | Unassigned |
 | T-058 | P1 | Implement storage backend switch test (`local` -> `s3`) | T-016 | Same upload/export tests pass under both backends | Unassigned |
