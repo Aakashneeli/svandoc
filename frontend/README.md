@@ -1,6 +1,6 @@
 # Frontend Package
 
-This package will host the Next.js web application.
+This package hosts the Next.js web application.
 
 ## Planned responsibilities
 
@@ -31,6 +31,6 @@ npm.cmd --prefix frontend run lint
 npm.cmd --prefix frontend run test
 ```
 
-## Placeholder
+## Current status
 
-Implementation will start in `T-037` and related tasks.
+`T-037` is complete: base app-shell routes and navigation are in place.

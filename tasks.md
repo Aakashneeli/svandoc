@@ -54,7 +54,7 @@ Last updated: 2026-02-15 (through T-110)
 | T-034 | P0 | [DONE 2026-02-15] Implement export service for `CSV` | T-033 | CSV headers and values are deterministic and tested | Codex |
 | T-035 | P0 | [DONE 2026-02-15] Implement export service for `XLSX` | T-033 | XLSX opens in Excel and preserves numeric/date fields | Codex |
 | T-036 | P0 | [DONE 2026-02-15] Implement export endpoint (`POST /api/documents/{id}/export`) | T-034, T-035, T-013 | Export artifact metadata is persisted and downloadable | Codex |
-| T-037 | P0 | Bootstrap Next.js app shell with auth-ready layout | T-003 | Base routes and navigation load successfully | Unassigned |
+| T-037 | P0 | [DONE 2026-02-15] Bootstrap Next.js app shell with auth-ready layout | T-003 | Base routes and navigation load successfully | Codex |
 | T-038 | P0 | Build upload page with single and batch upload UX | T-037, T-014 | Users can upload multiple files and see per-file status | Unassigned |
 | T-039 | P0 | Build document list page with status and search filters | T-037, T-030 | Documents searchable by status/date/vendor metadata | Unassigned |
 | T-040 | P0 | Build review page side-by-side document and extracted data | T-039, T-031 | Review page loads document + extracted payload correctly | Unassigned |

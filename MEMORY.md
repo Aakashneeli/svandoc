@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-036)
+Last updated: 2026-02-15 (updated after T-037)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -25,7 +25,7 @@ Out of scope now:
 
 ## 3) Current Architecture Decisions
 
-- Frontend: Next.js + TypeScript (scaffold in progress).
+- Frontend: Next.js + TypeScript app shell implemented with base navigation/routes.
 - Backend: FastAPI app bootstrap completed with `/health`, `/ready`, and `POST /api/documents/upload`.
 - Backend DB layer: SQLAlchemy engine/session bootstrap + Alembic migration framework added.
 - Queue: Redis + Celery integration implemented with enqueue + local eager-consumption tests.
@@ -80,6 +80,7 @@ Completed:
 25. `T-034`: CSV export service added with deterministic header ordering and stable value serialization for invoice/receipt canonical payloads.
 26. `T-035`: XLSX export service added using `openpyxl`, including typed numeric/date cells and worksheet output compatible with Excel.
 27. `T-036`: `POST /api/documents/{id}/export` endpoint added for `json`/`csv`/`xlsx`, with storage write + `export_artifacts` persistence and not-found/validation error handling.
+28. `T-037`: Next.js app shell added with shared auth-ready layout and base routes (`/`, `/upload`, `/documents`, `/review`) plus route smoke checks.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -89,10 +90,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-037` Bootstrap Next.js app shell with auth-ready layout.
-2. `T-038` Build upload page with single and batch upload UX.
-3. `T-039` Build document list page with status and search filters.
-4. `T-040` Build review page side-by-side document and extracted data.
+1. `T-038` Build upload page with single and batch upload UX.
+2. `T-039` Build document list page with status and search filters.
+3. `T-040` Build review page side-by-side document and extracted data.
+4. `T-041` Implement inline edit UI and correction submission.
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -179,6 +180,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 29. `T-034` CSV export service tests (deterministic headers/values + invalid payload rejection) passed with full backend suite (`84` tests) on `2026-02-15`.
 30. `T-035` XLSX export service tests (Excel workbook opens, numeric/date fields preserved, invalid payload rejection) passed with full backend suite (`86` tests) on `2026-02-15`.
 31. `T-036` export endpoint tests (json/xlsx artifact persistence, invalid format, not-found paths) passed with full backend suite (`91` tests) on `2026-02-15`.
+32. `T-037` frontend shell checks passed (`typecheck`, `lint`, `test`) on `2026-02-15`; `next build` failed in this sandbox with `spawn EPERM` worker-process limitation.
 
 ## 11) Update Protocol For Future Sessions
 
