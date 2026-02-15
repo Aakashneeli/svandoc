@@ -20,7 +20,9 @@ from sqlalchemy.orm import Session
 from svandoc_backend import __version__
 from svandoc_backend.db import get_db_session
 from svandoc_backend.envelope import error_envelope, request_id_from_request, success_envelope
+from svandoc_backend.export_service import build_csv_export, build_json_export, build_xlsx_export
 from svandoc_backend.models.document import Document
+from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
@@ -46,6 +48,10 @@ class CorrectionInput(BaseModel):
 
 class ExtractionCorrectionRequest(BaseModel):
     corrections: list[CorrectionInput] = Field(..., min_length=1)
+
+
+class ExportRequest(BaseModel):
+    format: str = Field(..., min_length=1)
 
 
 def _iso_timestamp(value: datetime | None) -> str | None:
@@ -98,6 +104,10 @@ def _set_path_value(payload: Any, field_path: str, value: Any) -> bool:
             return True
         current = current[parsed]
     return False
+
+
+def _normalize_export_format(raw_format: str) -> str:
+    return (raw_format or "").strip().lower()
 
 
 def queue_backend_mode() -> str:
@@ -362,6 +372,106 @@ async def patch_document_extraction(
             "structured_payload": extraction.structured_payload,
             "confidence_map": extraction.confidence_map,
             "review_required": bool(extraction.is_review_required),
+        },
+    )
+
+
+@app.post("/api/documents/{document_id}/export")
+async def export_document(
+    request: Request,
+    document_id: str,
+    export_request: ExportRequest,
+    db: Session = Depends(get_db_session),
+) -> dict[str, object]:
+    export_format = _normalize_export_format(export_request.format)
+    if export_format not in {"json", "csv", "xlsx"}:
+        return JSONResponse(
+            status_code=400,
+            content=error_envelope(
+                request,
+                code="VALIDATION_ERROR",
+                message="Unsupported export format.",
+                details={"format": export_request.format, "supported_formats": ["json", "csv", "xlsx"]},
+                retryable=False,
+            ),
+        )
+
+    document = db.get(Document, document_id)
+    if document is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="DOCUMENT_NOT_FOUND",
+                message="Requested document does not exist.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    extraction = (
+        db.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    )
+    if extraction is None:
+        return JSONResponse(
+            status_code=404,
+            content=error_envelope(
+                request,
+                code="EXTRACTION_NOT_FOUND",
+                message="Extraction result is not available for this document.",
+                details={"document_id": document_id},
+                retryable=False,
+            ),
+        )
+
+    try:
+        storage_backend = get_storage_backend()
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=500,
+            content=error_envelope(
+                request,
+                code="CONFIGURATION_ERROR",
+                message=str(exc),
+                details=None,
+                retryable=False,
+            ),
+        )
+
+    payload = extraction.structured_payload
+    if export_format == "json":
+        export_content = build_json_export(payload)
+    elif export_format == "csv":
+        export_content = build_csv_export(payload)
+    else:
+        export_content = build_xlsx_export(payload)
+
+    artifact_id = str(uuid4())
+    artifact_filename = f"{document_id}.{export_format}"
+    storage_uri = storage_backend.store_document(artifact_id, artifact_filename, export_content)
+    created_by = request.headers.get("x-user-id", "local-user")
+    created_at = datetime.now(timezone.utc)
+
+    artifact = ExportArtifact(
+        id=artifact_id,
+        document_id=document_id,
+        format=export_format,
+        storage_uri=storage_uri,
+        created_by=created_by,
+        created_at=created_at,
+    )
+    db.add(artifact)
+    db.commit()
+
+    return success_envelope(
+        request,
+        data={
+            "artifact_id": artifact_id,
+            "document_id": document_id,
+            "format": export_format,
+            "storage_uri": storage_uri,
+            "created_by": created_by,
+            "created_at": _iso_timestamp(created_at),
         },
     )
 

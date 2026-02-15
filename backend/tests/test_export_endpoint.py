@@ -1,0 +1,229 @@
+import json
+import os
+import shutil
+import unittest
+from io import BytesIO
+from pathlib import Path
+from uuid import uuid4
+
+import sqlalchemy as sa
+from fastapi.testclient import TestClient
+from openpyxl import load_workbook
+from sqlalchemy.orm import sessionmaker
+
+from svandoc_backend.db import Base, get_db_session
+from svandoc_backend.main import app
+from svandoc_backend.models.document import Document
+from svandoc_backend.models.export_artifact import ExportArtifact
+from svandoc_backend.models.extraction_result import ExtractionResult
+
+
+class ExportEndpointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        workspace_tmp = Path("tests_tmp")
+        workspace_tmp.mkdir(parents=True, exist_ok=True)
+        self.test_dir = workspace_tmp / f"export-endpoint-{uuid4().hex}"
+        self.test_dir.mkdir(parents=True, exist_ok=False)
+        self.storage_dir = self.test_dir / "storage"
+        self.db_path = self.test_dir / "export-endpoint-test.db"
+        self.engine = sa.create_engine(f"sqlite:///{self.db_path.as_posix()}")
+        self.SessionTesting = sessionmaker(bind=self.engine, autoflush=False, autocommit=False, expire_on_commit=False)
+        Base.metadata.create_all(self.engine)
+
+        self.previous_queue_backend = os.environ.get("QUEUE_BACKEND")
+        self.previous_storage = os.environ.get("LOCAL_STORAGE_PATH")
+        self.previous_storage_backend = os.environ.get("STORAGE_BACKEND")
+        os.environ["QUEUE_BACKEND"] = "disabled"
+        os.environ["LOCAL_STORAGE_PATH"] = str(self.storage_dir)
+        os.environ["STORAGE_BACKEND"] = "local"
+
+        def override_db_session():
+            session = self.SessionTesting()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        app.dependency_overrides[get_db_session] = override_db_session
+        self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        app.dependency_overrides.clear()
+        self.engine.dispose()
+        if self.previous_queue_backend is None:
+            os.environ.pop("QUEUE_BACKEND", None)
+        else:
+            os.environ["QUEUE_BACKEND"] = self.previous_queue_backend
+        if self.previous_storage is None:
+            os.environ.pop("LOCAL_STORAGE_PATH", None)
+        else:
+            os.environ["LOCAL_STORAGE_PATH"] = self.previous_storage
+        if self.previous_storage_backend is None:
+            os.environ.pop("STORAGE_BACKEND", None)
+        else:
+            os.environ["STORAGE_BACKEND"] = self.previous_storage_backend
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    def _insert_document_with_extraction(self, document_id: str) -> None:
+        session = self.SessionTesting()
+        try:
+            session.add(
+                Document(
+                    id=document_id,
+                    team_id="team-a",
+                    uploaded_by="user-a",
+                    filename="invoice.pdf",
+                    mime_type="application/pdf",
+                    checksum=f"checksum-{document_id}",
+                    storage_uri=str(self.test_dir / "invoice.pdf"),
+                    page_count=1,
+                )
+            )
+            session.add(
+                ExtractionResult(
+                    id=f"ext-{document_id}",
+                    document_id=document_id,
+                    schema_version="1.0.0",
+                    doc_type="invoice",
+                    raw_ocr_text="INVOICE OCR RAW",
+                    structured_payload={
+                        "schema_version": "1.0.0",
+                        "document_type": "invoice",
+                        "metadata": {"document_id": document_id, "source_file_name": "invoice.pdf", "page_count": 1},
+                        "vendor": {"name": "ACME Inc", "tax_id": None, "address": None, "email": None},
+                        "customer": None,
+                        "invoice": {
+                            "invoice_number": "INV-1",
+                            "issue_date": "2026-02-15",
+                            "due_date": None,
+                            "purchase_order_number": None,
+                        },
+                        "amounts": {
+                            "currency": "USD",
+                            "subtotal": 100.0,
+                            "tax": 8.75,
+                            "shipping": None,
+                            "discount": None,
+                            "total": 108.75,
+                        },
+                        "line_items": [
+                            {"description": "Service Fee", "quantity": 1, "unit_price": 108.75, "line_total": 108.75}
+                        ],
+                        "payment_terms": None,
+                        "confidence": {"overall": 0.95, "fields": {"amounts.total": 0.97}},
+                        "raw_text": "INVOICE OCR RAW",
+                        "review_required": False,
+                        "warnings": [],
+                    },
+                    confidence_map={"overall": 0.95, "fields": {"amounts.total": 0.97}},
+                    is_review_required=False,
+                )
+            )
+            session.commit()
+        finally:
+            session.close()
+
+    def test_export_json_persists_artifact_and_file(self) -> None:
+        document_id = "doc-export-json"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            headers={"x-user-id": "editor-a"},
+            json={"format": "json"},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "json")
+        self.assertEqual(data["document_id"], document_id)
+        self.assertEqual(data["created_by"], "editor-a")
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, data["artifact_id"])
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.format, "json")
+        stored_content = Path(artifact.storage_uri).read_text(encoding="utf-8")
+        rendered_payload = json.loads(stored_content)
+        self.assertEqual(rendered_payload["schema_version"], "1.0.0")
+        self.assertEqual(rendered_payload["document_type"], "invoice")
+
+    def test_export_xlsx_persists_excel_file(self) -> None:
+        document_id = "doc-export-xlsx"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "xlsx"},
+        )
+        self.assertEqual(response.status_code, 200)
+        artifact_id = response.json()["data"]["artifact_id"]
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, artifact_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.format, "xlsx")
+        workbook = load_workbook(filename=BytesIO(Path(artifact.storage_uri).read_bytes()))
+        self.assertIn("summary", workbook.sheetnames)
+        self.assertIn("line_items", workbook.sheetnames)
+
+    def test_export_rejects_invalid_format(self) -> None:
+        document_id = "doc-export-invalid"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "pdf"},
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_returns_404_when_document_missing(self) -> None:
+        response = self.client.post(
+            "/api/documents/missing-document/export",
+            json={"format": "json"},
+        )
+        self.assertEqual(response.status_code, 404)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "DOCUMENT_NOT_FOUND")
+
+    def test_export_returns_404_when_extraction_missing(self) -> None:
+        document_id = "doc-export-no-extraction"
+        session = self.SessionTesting()
+        try:
+            session.add(
+                Document(
+                    id=document_id,
+                    team_id="team-a",
+                    uploaded_by="user-a",
+                    filename="invoice.pdf",
+                    mime_type="application/pdf",
+                    checksum=f"checksum-{document_id}",
+                    storage_uri=str(self.test_dir / "invoice.pdf"),
+                    page_count=1,
+                )
+            )
+            session.commit()
+        finally:
+            session.close()
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "json"},
+        )
+        self.assertEqual(response.status_code, 404)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "EXTRACTION_NOT_FOUND")
+
+
+if __name__ == "__main__":
+    unittest.main()
