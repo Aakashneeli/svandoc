@@ -17,7 +17,7 @@ from svandoc_backend.models.document import Document
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.preprocessing import preprocess_image_content
-from svandoc_backend.vllm_client import build_vllm_client_from_env
+from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
 from svandoc_backend.worker_logging import emit_worker_log
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
@@ -46,13 +46,18 @@ def _broker_url() -> str:
     return value or DEFAULT_REDIS_URL
 
 
-def _dots_model_name() -> str:
+def _default_ocr_model_name() -> str:
     value = os.getenv("OCR_DEFAULT_MODEL", DEFAULT_DOTS_MODEL).strip()
     return value or DEFAULT_DOTS_MODEL
 
 
+def _fallback_model_name() -> str:
+    value = os.getenv("OCR_FALLBACK_MODEL", DEFAULT_CHANDRA_MODEL).strip()
+    return value or DEFAULT_CHANDRA_MODEL
+
+
 def _choose_ocr_adapter(model_name: str, client: object) -> DotsOCRAdapter | ChandraOCRAdapter:
-    if model_name.lower() == DEFAULT_CHANDRA_MODEL:
+    if is_fallback_model(model_name, _fallback_model_name()):
         return ChandraOCRAdapter(client=client, model_name=model_name)
     return DotsOCRAdapter(client=client, model_name=model_name)
 
@@ -161,8 +166,8 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
 
         raw_content = _load_document_bytes(document)
         preprocessed = preprocess_image_content(raw_content, str(document.mime_type))
-        vllm_client = build_vllm_client_from_env()
-        model_name = _dots_model_name()
+        model_name = _default_ocr_model_name()
+        vllm_client = build_vllm_client_for_model(model_name)
         ocr_adapter = _choose_ocr_adapter(model_name, vllm_client)
         extraction = ocr_adapter.extract(
             document_content=preprocessed.content,

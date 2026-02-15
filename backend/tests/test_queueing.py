@@ -31,6 +31,7 @@ class QueueingIntegrationTests(unittest.TestCase):
 
         self.previous_queue_backend = os.environ.get("QUEUE_BACKEND")
         self.previous_ocr_default_model = os.environ.get("OCR_DEFAULT_MODEL")
+        self.previous_ocr_fallback_model = os.environ.get("OCR_FALLBACK_MODEL")
         self.previous_task_always_eager = bool(celery_app.conf.task_always_eager)
         self.previous_job_session_factory = JOB_SESSION_FACTORY
 
@@ -46,6 +47,10 @@ class QueueingIntegrationTests(unittest.TestCase):
             os.environ.pop("OCR_DEFAULT_MODEL", None)
         else:
             os.environ["OCR_DEFAULT_MODEL"] = self.previous_ocr_default_model
+        if self.previous_ocr_fallback_model is None:
+            os.environ.pop("OCR_FALLBACK_MODEL", None)
+        else:
+            os.environ["OCR_FALLBACK_MODEL"] = self.previous_ocr_fallback_model
 
         queueing.JOB_SESSION_FACTORY = self.previous_job_session_factory
         celery_app.conf.task_always_eager = self.previous_task_always_eager
@@ -93,7 +98,7 @@ class QueueingIntegrationTests(unittest.TestCase):
             log_mock = stack.enter_context(patch("svandoc_backend.queueing.emit_worker_log"))
             stack.enter_context(
                 patch(
-                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
                     return_value=object(),
                 )
             )
@@ -160,7 +165,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(
                 patch(
-                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
                     return_value=object(),
                 )
             )
@@ -192,7 +197,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(
                 patch(
-                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    "svandoc_backend.queueing.build_vllm_client_for_model",
                     return_value=object(),
                 )
             )
@@ -211,6 +216,30 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertFalse(dots_extract.called)
         self.assertTrue(chandra_extract.called)
+
+    def test_process_document_job_marks_failed_when_client_selection_errors(self) -> None:
+        job_id = "job-fallback-client-error"
+        os.environ["OCR_DEFAULT_MODEL"] = "datalab-to/chandra"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+
+        with self.assertRaises(RuntimeError):
+            with patch(
+                "svandoc_backend.queueing.build_vllm_client_for_model",
+                side_effect=RuntimeError("fallback endpoint unavailable"),
+            ):
+                process_document_job(job_id, request_id="req-fallback-error")
+
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "failed")
+        self.assertEqual(job.error_code, "PROCESSING_ERROR")
+        self.assertIn("fallback endpoint unavailable", str(job.error_message))
 
 
 if __name__ == "__main__":

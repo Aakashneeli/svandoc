@@ -10,9 +10,11 @@ from typing import Any, Callable
 import httpx
 
 DEFAULT_VLLM_BASE_URL = "http://localhost:11434/v1"
+DEFAULT_VLLM_FALLBACK_BASE_URL = "http://localhost:11435/v1"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 DEFAULT_MAX_RETRIES = 2
 DEFAULT_RETRY_BACKOFF_SECONDS = 0.5
+DEFAULT_FALLBACK_MODEL = "datalab-to/chandra"
 
 
 class VLLMClientError(RuntimeError):
@@ -51,6 +53,31 @@ def _read_int_env(name: str, default: int) -> int:
 
 def _is_retryable_http_error(status_code: int) -> bool:
     return status_code == 429 or status_code >= 500
+
+
+def _model_basename(model_name: str) -> str:
+    clean = (model_name or "").strip().lower()
+    if "/" in clean:
+        return clean.rsplit("/", 1)[-1]
+    return clean
+
+
+def is_fallback_model(model_name: str, fallback_model_name: str) -> bool:
+    model = (model_name or "").strip().lower()
+    fallback = (fallback_model_name or "").strip().lower()
+    if not model or not fallback:
+        return False
+    return model == fallback or _model_basename(model) == _model_basename(fallback)
+
+
+def base_url_for_model(model_name: str) -> str:
+    primary_url = os.getenv("VLLM_BASE_URL", DEFAULT_VLLM_BASE_URL).strip() or DEFAULT_VLLM_BASE_URL
+    fallback_url = (
+        os.getenv("VLLM_FALLBACK_BASE_URL", DEFAULT_VLLM_FALLBACK_BASE_URL).strip()
+        or DEFAULT_VLLM_FALLBACK_BASE_URL
+    )
+    fallback_model_name = os.getenv("OCR_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL).strip() or DEFAULT_FALLBACK_MODEL
+    return fallback_url if is_fallback_model(model_name, fallback_model_name) else primary_url
 
 
 class VLLMClient:
@@ -202,6 +229,30 @@ def build_vllm_client_from_env(
 
     return VLLMClient(
         base_url=base_url,
+        api_key=api_key,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
+        retry_backoff_seconds=retry_backoff_seconds,
+        metrics_hook=metrics_hook,
+        http_client=http_client,
+        sleep_fn=sleep_fn,
+    )
+
+
+def build_vllm_client_for_model(
+    model_name: str,
+    *,
+    metrics_hook: MetricsHook | None = None,
+    http_client: httpx.Client | None = None,
+    sleep_fn: Callable[[float], None] | None = None,
+) -> VLLMClient:
+    api_key = os.getenv("VLLM_API_KEY", "").strip() or None
+    timeout_seconds = _read_float_env("VLLM_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
+    max_retries = _read_int_env("VLLM_MAX_RETRIES", DEFAULT_MAX_RETRIES)
+    retry_backoff_seconds = _read_float_env("VLLM_RETRY_BACKOFF_SECONDS", DEFAULT_RETRY_BACKOFF_SECONDS)
+
+    return VLLMClient(
+        base_url=base_url_for_model(model_name),
         api_key=api_key,
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,

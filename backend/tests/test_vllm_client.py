@@ -1,10 +1,17 @@
+import os
 import unittest
 from collections import deque
 from typing import Any
+from unittest.mock import patch
 
 import httpx
 
-from svandoc_backend.vllm_client import VLLMClient, VLLMClientError
+from svandoc_backend.vllm_client import (
+    VLLMClient,
+    VLLMClientError,
+    base_url_for_model,
+    build_vllm_client_for_model,
+)
 
 
 class _StubHTTPClient:
@@ -106,6 +113,30 @@ class VLLMClientTests(unittest.TestCase):
 
         self.assertEqual(sleeps, [])
         self.assertEqual(len(stub.calls), 1)
+
+    def test_base_url_for_model_uses_fallback_endpoint(self) -> None:
+        env = {
+            "VLLM_BASE_URL": "http://localhost:11434/v1",
+            "VLLM_FALLBACK_BASE_URL": "http://localhost:11435/v1",
+            "OCR_FALLBACK_MODEL": "datalab-to/chandra",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            self.assertEqual(base_url_for_model("FL33TW00D-HF/dots.ocr"), "http://localhost:11434/v1")
+            self.assertEqual(base_url_for_model("datalab-to/chandra"), "http://localhost:11435/v1")
+            self.assertEqual(base_url_for_model("chandra"), "http://localhost:11435/v1")
+
+    def test_build_vllm_client_for_model_selects_expected_base_url(self) -> None:
+        env = {
+            "VLLM_BASE_URL": "http://primary.example/v1",
+            "VLLM_FALLBACK_BASE_URL": "http://fallback.example/v1",
+            "OCR_FALLBACK_MODEL": "datalab-to/chandra",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            primary_client = build_vllm_client_for_model("FL33TW00D-HF/dots.ocr")
+            fallback_client = build_vllm_client_for_model("datalab-to/chandra")
+
+        self.assertEqual(primary_client._base_url, "http://primary.example/v1")  # noqa: SLF001
+        self.assertEqual(fallback_client._base_url, "http://fallback.example/v1")  # noqa: SLF001
 
 
 if __name__ == "__main__":
