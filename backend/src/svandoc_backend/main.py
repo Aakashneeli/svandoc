@@ -47,6 +47,7 @@ from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.models.user_correction import UserCorrection
 from svandoc_backend.queueing import enqueue_processing_job
+from svandoc_backend.quickbooks_connector import QuickBooksConnectorError, export_to_quickbooks
 from svandoc_backend.rate_limit import rate_limiter, rate_limit_subject, should_rate_limit_path
 from svandoc_backend.storage import get_storage_backend
 from svandoc_backend.uploads import (
@@ -202,6 +203,8 @@ class ExportRequest(BaseModel):
     cloud_access_token: str | None = None
     cloud_folder: str | None = None
     cloud_filename: str | None = None
+    quickbooks_access_token: str | None = None
+    quickbooks_realm_id: str | None = None
 
 
 def _iso_timestamp(value: datetime | None) -> str | None:
@@ -799,7 +802,7 @@ async def export_document(
         return auth_error
 
     export_format = _normalize_export_format(export_request.format)
-    supported_formats = ["json", "csv", "xlsx", "gsheets", "gdrive", "onedrive", "dropbox"]
+    supported_formats = ["json", "csv", "xlsx", "gsheets", "gdrive", "onedrive", "dropbox", "quickbooks"]
     if export_format not in supported_formats:
         return JSONResponse(
             status_code=400,
@@ -960,6 +963,76 @@ async def export_document(
                     code="EXPORT_DELIVERY_FAILED",
                     message="Cloud connector export failed.",
                     details={"connector": export_format, "reason": str(exc), "artifact_id": artifact_id},
+                    retryable=True,
+                ),
+            )
+        storage_uri = connector_result.storage_uri
+    elif export_format == "quickbooks":
+        quickbooks_access_token = (export_request.quickbooks_access_token or "").strip()
+        quickbooks_realm_id = (export_request.quickbooks_realm_id or "").strip()
+        missing_fields: list[str] = []
+        if not quickbooks_access_token:
+            missing_fields.append("quickbooks_access_token")
+        if not quickbooks_realm_id:
+            missing_fields.append("quickbooks_realm_id")
+        if missing_fields:
+            return JSONResponse(
+                status_code=400,
+                content=error_envelope(
+                    request,
+                    code="VALIDATION_ERROR",
+                    message="QuickBooks export requires access token and realm ID.",
+                    details={"missing_fields": missing_fields},
+                    retryable=False,
+                ),
+            )
+        try:
+            connector_result = export_to_quickbooks(
+                access_token=quickbooks_access_token,
+                realm_id=quickbooks_realm_id,
+                payload=payload,
+                api_base_url=(
+                    os.getenv("QUICKBOOKS_API_BASE_URL", "https://quickbooks.api.intuit.com").strip()
+                    or "https://quickbooks.api.intuit.com"
+                ),
+            )
+        except QuickBooksConnectorError as exc:
+            delivery_status = "failed"
+            storage_uri = "failed://quickbooks"
+            created_by = request.headers.get("x-user-id", "local-user")
+            created_at = datetime.now(timezone.utc)
+            db.add(
+                ExportArtifact(
+                    id=artifact_id,
+                    document_id=document_id,
+                    format=export_format,
+                    storage_uri=storage_uri,
+                    delivery_status=delivery_status,
+                    created_by=created_by,
+                    created_at=created_at,
+                )
+            )
+            db.commit()
+            deliver_webhook_event(
+                db,
+                event_type="export.created",
+                data={
+                    "artifact_id": artifact_id,
+                    "document_id": document_id,
+                    "format": export_format,
+                    "storage_uri": storage_uri,
+                    "delivery_status": delivery_status,
+                    "created_by": created_by,
+                    "created_at": _iso_timestamp(created_at),
+                },
+            )
+            return JSONResponse(
+                status_code=502,
+                content=error_envelope(
+                    request,
+                    code="EXPORT_DELIVERY_FAILED",
+                    message="QuickBooks export failed.",
+                    details={"connector": "quickbooks", "reason": str(exc), "artifact_id": artifact_id},
                     retryable=True,
                 ),
             )

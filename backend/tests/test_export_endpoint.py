@@ -19,6 +19,7 @@ from svandoc_backend.models.document import Document
 from svandoc_backend.models.export_artifact import ExportArtifact
 from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.google_sheets_export import GoogleSheetsExportResult
+from svandoc_backend.quickbooks_connector import QuickBooksConnectorError, QuickBooksExportResult
 
 
 class ExportEndpointTests(unittest.TestCase):
@@ -358,6 +359,73 @@ class ExportEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         payload = response.json()
         self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_quickbooks_persists_artifact(self) -> None:
+        document_id = "doc-export-quickbooks"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.export_to_quickbooks") as mocked_export:
+            mocked_export.return_value = QuickBooksExportResult(
+                realm_id="realm-1",
+                resource_id="purchase-100",
+                storage_uri="quickbooks://realm-1/purchase-100",
+            )
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "quickbooks",
+                    "quickbooks_access_token": "token-value",
+                    "quickbooks_realm_id": "realm-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["format"], "quickbooks")
+        self.assertEqual(data["storage_uri"], "quickbooks://realm-1/purchase-100")
+        self.assertEqual(data["delivery_status"], "completed")
+
+    def test_export_quickbooks_requires_required_fields(self) -> None:
+        document_id = "doc-export-quickbooks-validation"
+        self._insert_document_with_extraction(document_id)
+
+        response = self.client.post(
+            f"/api/documents/{document_id}/export",
+            json={"format": "quickbooks"},
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_quickbooks_failure_persists_failed_status(self) -> None:
+        document_id = "doc-export-quickbooks-failed"
+        self._insert_document_with_extraction(document_id)
+
+        with patch("svandoc_backend.main.export_to_quickbooks") as mocked_export:
+            mocked_export.side_effect = QuickBooksConnectorError("quickbooks_export_failed:401")
+            response = self.client.post(
+                f"/api/documents/{document_id}/export",
+                json={
+                    "format": "quickbooks",
+                    "quickbooks_access_token": "token-value",
+                    "quickbooks_realm_id": "realm-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 502)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "EXPORT_DELIVERY_FAILED")
+        artifact_id = payload["error"]["details"]["artifact_id"]
+
+        session = self.SessionTesting()
+        try:
+            artifact = session.get(ExportArtifact, artifact_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(artifact)
+        assert artifact is not None
+        self.assertEqual(artifact.delivery_status, "failed")
+        self.assertEqual(artifact.storage_uri, "failed://quickbooks")
 
     def test_export_returns_404_when_document_missing(self) -> None:
         response = self.client.post(
