@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from uuid import uuid4
 from typing import Any
+from uuid import uuid4
 
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
@@ -31,6 +31,8 @@ DEFAULT_CHANDRA_MODEL = "chandra"
 DEFAULT_FALLBACK_MIN_CONFIDENCE = 0.75
 DEFAULT_FALLBACK_LINE_ITEMS_THRESHOLD = 12
 DEFAULT_FALLBACK_PAGE_COUNT_THRESHOLD = 2
+DEFAULT_PROCESSING_MAX_RETRIES = 3
+DEFAULT_RETRY_BACKOFF_SECONDS = 5
 
 JOB_SESSION_FACTORY: sessionmaker[Session] = SessionLocal
 
@@ -87,6 +89,29 @@ def _read_int_env(name: str, default: int) -> int:
     except ValueError:
         return default
     return parsed if parsed > 0 else default
+
+
+def _retry_delay_seconds(attempt_count: int) -> int:
+    base_seconds = _read_int_env("PROCESSING_RETRY_BACKOFF_SECONDS", DEFAULT_RETRY_BACKOFF_SECONDS)
+    exponent = max(attempt_count - 1, 0)
+    return min(base_seconds * (2**exponent), 300)
+
+
+def _is_retryable_processing_error(exc: Exception) -> bool:
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True
+
+    message = str(exc).lower()
+    retryable_markers = (
+        "timeout",
+        "temporar",
+        "connection reset",
+        "connection refused",
+        "retryable",
+        "503",
+        "429",
+    )
+    return any(marker in message for marker in retryable_markers)
 
 
 def _flatten_confidences(value: Any) -> list[float]:
@@ -204,8 +229,12 @@ def create_celery_app() -> Celery:
 celery_app = create_celery_app()
 
 
-@celery_app.task(name="svandoc.jobs.process_document")
-def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, str]:
+def process_document_job(
+    job_id: str,
+    request_id: str = "unknown",
+    *,
+    retry_context: Any | None = None,
+) -> dict[str, str]:
     safe_request_id = request_id or "unknown"
     session = JOB_SESSION_FACTORY()
     try:
@@ -321,10 +350,45 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
         session.rollback()
         failed_job = session.get(Job, job_id)
         if failed_job is not None and can_transition(str(failed_job.status), "failed"):
+            max_retries = _read_int_env("PROCESSING_MAX_RETRIES", DEFAULT_PROCESSING_MAX_RETRIES)
+            attempt_count = int(failed_job.attempt_count)
+            is_retryable = _is_retryable_processing_error(exc)
+            should_retry = (
+                retry_context is not None
+                and is_retryable
+                and attempt_count < max_retries
+            )
+
+            if should_retry:
+                transition_job_status(
+                    failed_job,
+                    "failed",
+                    error_code="RETRY_SCHEDULED",
+                    error_message=str(exc),
+                )
+                transition_job_status(failed_job, "queued")
+                session.commit()
+                retry_delay_seconds = _retry_delay_seconds(attempt_count)
+                emit_worker_log(
+                    event="job_retry_scheduled",
+                    request_id=safe_request_id,
+                    job_id=failed_job.id,
+                    document_id=failed_job.document_id,
+                    status="queued",
+                    details={
+                        "attempt_count": attempt_count,
+                        "max_retries": max_retries,
+                        "next_retry_in_seconds": retry_delay_seconds,
+                        "error_message": str(exc),
+                    },
+                )
+                return retry_context.retry(exc=exc, countdown=retry_delay_seconds)
+
+            error_code = "DEAD_LETTER" if is_retryable else "PROCESSING_ERROR"
             transition_job_status(
                 failed_job,
                 "failed",
-                error_code="PROCESSING_ERROR",
+                error_code=error_code,
                 error_message=str(exc),
             )
             session.commit()
@@ -334,16 +398,25 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
                 job_id=failed_job.id,
                 document_id=failed_job.document_id,
                 status="failed",
-                details={"error_code": "PROCESSING_ERROR", "error_message": str(exc)},
+                details={"error_code": error_code, "error_message": str(exc)},
             )
         raise
     finally:
         session.close()
 
 
+@celery_app.task(
+    name="svandoc.jobs.process_document",
+    bind=True,
+    max_retries=DEFAULT_PROCESSING_MAX_RETRIES,
+)
+def process_document_job_task(self: Any, job_id: str, request_id: str = "unknown") -> dict[str, str]:
+    return process_document_job(job_id, request_id=request_id, retry_context=self)
+
+
 def enqueue_processing_job(job_id: str, request_id: str | None = None) -> str | None:
     if queue_backend_mode() == "disabled":
         return None
 
-    async_result = process_document_job.delay(job_id, request_id or "unknown")
+    async_result = process_document_job_task.delay(job_id, request_id or "unknown")
     return async_result.id

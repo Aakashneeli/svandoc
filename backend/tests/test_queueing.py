@@ -18,6 +18,20 @@ from svandoc_backend.queueing import JOB_SESSION_FACTORY, celery_app, enqueue_pr
 import svandoc_backend.queueing as queueing
 
 
+class RetryScheduledError(Exception):
+    pass
+
+
+class FakeRetryContext:
+    def __init__(self, retries: int) -> None:
+        self.request = type("Request", (), {"retries": retries})()
+        self.retry_calls: list[dict[str, object]] = []
+
+    def retry(self, *, exc: Exception, countdown: int) -> None:
+        self.retry_calls.append({"exc": exc, "countdown": countdown})
+        raise RetryScheduledError("retry scheduled")
+
+
 class QueueingIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         workspace_tmp = Path("tests_tmp")
@@ -33,6 +47,7 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.previous_ocr_default_model = os.environ.get("OCR_DEFAULT_MODEL")
         self.previous_ocr_fallback_model = os.environ.get("OCR_FALLBACK_MODEL")
         self.previous_fallback_page_threshold = os.environ.get("OCR_FALLBACK_PAGE_COUNT_THRESHOLD")
+        self.previous_processing_max_retries = os.environ.get("PROCESSING_MAX_RETRIES")
         self.previous_task_always_eager = bool(celery_app.conf.task_always_eager)
         self.previous_job_session_factory = JOB_SESSION_FACTORY
 
@@ -56,6 +71,10 @@ class QueueingIntegrationTests(unittest.TestCase):
             os.environ.pop("OCR_FALLBACK_PAGE_COUNT_THRESHOLD", None)
         else:
             os.environ["OCR_FALLBACK_PAGE_COUNT_THRESHOLD"] = self.previous_fallback_page_threshold
+        if self.previous_processing_max_retries is None:
+            os.environ.pop("PROCESSING_MAX_RETRIES", None)
+        else:
+            os.environ["PROCESSING_MAX_RETRIES"] = self.previous_processing_max_retries
 
         queueing.JOB_SESSION_FACTORY = self.previous_job_session_factory
         celery_app.conf.task_always_eager = self.previous_task_always_eager
@@ -386,6 +405,66 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(job.status, "failed")
         self.assertEqual(job.error_code, "PROCESSING_ERROR")
         self.assertIn("fallback endpoint unavailable", str(job.error_message))
+
+    def test_process_document_job_schedules_retry_for_retryable_errors(self) -> None:
+        job_id = "job-retryable-error"
+        os.environ["PROCESSING_MAX_RETRIES"] = "3"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+        retry_context = FakeRetryContext(retries=0)
+
+        with self.assertRaises(RetryScheduledError):
+            with patch(
+                "svandoc_backend.queueing.build_vllm_client_for_model",
+                side_effect=TimeoutError("temporary inference timeout"),
+            ):
+                process_document_job(job_id, request_id="req-retryable", retry_context=retry_context)
+
+        self.assertEqual(len(retry_context.retry_calls), 1)
+        self.assertGreaterEqual(int(retry_context.retry_calls[0]["countdown"]), 1)
+
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "queued")
+        self.assertEqual(job.attempt_count, 1)
+        self.assertIsNone(job.error_code)
+        self.assertIsNone(job.error_message)
+
+    def test_process_document_job_marks_dead_letter_when_retries_exhausted(self) -> None:
+        job_id = "job-dead-letter"
+        os.environ["PROCESSING_MAX_RETRIES"] = "1"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+        retry_context = FakeRetryContext(retries=0)
+
+        with self.assertRaises(TimeoutError):
+            with patch(
+                "svandoc_backend.queueing.build_vllm_client_for_model",
+                side_effect=TimeoutError("temporary inference timeout"),
+            ):
+                process_document_job(job_id, request_id="req-dead-letter", retry_context=retry_context)
+
+        self.assertEqual(len(retry_context.retry_calls), 0)
+
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "failed")
+        self.assertEqual(job.error_code, "DEAD_LETTER")
+        self.assertIn("temporary inference timeout", str(job.error_message))
 
 
 if __name__ == "__main__":

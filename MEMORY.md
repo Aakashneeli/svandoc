@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (updated after T-048)
+Last updated: 2026-02-15 (updated after T-049)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -92,6 +92,7 @@ Completed:
 37. `T-046`: Versioned benchmark dataset curated at `datasets/benchmark/v1` with synthetic invoice/receipt samples across clean/noisy/rotated/multilayout variants (PNG+PDF), manifest with checksums, and integrity test coverage.
 38. `T-047`: Extraction quality evaluation module added (`svandoc_backend.quality_eval`) with field-level precision/recall/F1 output grouped by document type, benchmark ground truth labels, CLI wrapper (`backend/scripts/quality-eval.ps1`), and evaluator unit tests.
 39. `T-048`: Quality regression thresholds enforced in CI via new quality gate module (`svandoc_backend.quality_gate`), CI baseline predictions fixture (`datasets/benchmark/v1/ci_predictions.json`), and GitHub Actions workflow (`.github/workflows/backend-quality-gate.yml`) that runs evaluator + threshold checks.
+40. `T-049`: Queue retry/dead-letter handling added in worker processing with bounded retry scheduling/backoff and dead-letter terminal failures, plus integration coverage for retryable timeout requeue and exhausted-retry dead-letter outcomes.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -101,10 +102,10 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-049` Add integration tests for queue retries and failure states.
-2. `T-050` Add role-based authorization checks (Admin/Editor/Viewer).
-3. `T-051` Add document retention policy and hard-delete job.
-4. `T-052` Add structured logging sink and request correlation IDs.
+1. `T-050` Add role-based authorization checks (Admin/Editor/Viewer).
+2. `T-051` Add document retention policy and hard-delete job.
+3. `T-052` Add structured logging sink and request correlation IDs.
+4. `T-053` Add metrics instrumentation (latency, queue depth, error rate).
 5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -203,6 +204,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 41. `T-046` dataset curation checks passed on `2026-02-15`: generator produced manifest and sample corpus, `backend/tests/test_benchmark_dataset.py` passed, and full backend suite passed (`93` tests).
 42. `T-047` evaluator checks passed on `2026-02-15`: `backend/tests/test_quality_eval.py` and `backend/tests/test_benchmark_dataset.py` passed, CLI smoke run produced `.local-sandbox/quality-eval.json`, and full backend suite passed (`95` tests).
 43. `T-048` quality-gate checks passed on `2026-02-15`: `backend/tests/test_quality_eval.py` and `backend/tests/test_quality_gate.py` passed, evaluator + threshold gate CLI run passed against `datasets/benchmark/v1/ci_predictions.json`, and full backend suite passed (`98` tests).
+44. `T-049` queue-retry/dead-letter checks passed on `2026-02-15`: `backend/tests/test_queueing.py` passed with retry/dead-letter scenarios, and full backend suite passed (`100` tests).
 
 ## 11) Update Protocol For Future Sessions
 
