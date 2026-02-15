@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from uuid import uuid4
 
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
 
 from svandoc_backend.db import SessionLocal
+from svandoc_backend.dots_ocr import DotsOCRAdapter
 from svandoc_backend.job_state_machine import can_transition, transition_job_status
+from svandoc_backend.models.document import Document
+from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
+from svandoc_backend.preprocessing import preprocess_image_content
+from svandoc_backend.vllm_client import build_vllm_client_from_env
 from svandoc_backend.worker_logging import emit_worker_log
 
 DEFAULT_REDIS_URL = "redis://localhost:6379/0"
+DEFAULT_DOTS_MODEL = "dots.ocr"
 
 JOB_SESSION_FACTORY: sessionmaker[Session] = SessionLocal
 
@@ -34,6 +42,63 @@ def queue_backend_mode() -> str:
 def _broker_url() -> str:
     value = os.getenv("REDIS_URL", DEFAULT_REDIS_URL).strip()
     return value or DEFAULT_REDIS_URL
+
+
+def _dots_model_name() -> str:
+    value = os.getenv("OCR_DEFAULT_MODEL", DEFAULT_DOTS_MODEL).strip()
+    return value or DEFAULT_DOTS_MODEL
+
+
+def _resolve_document_path(storage_uri: str) -> Path:
+    if storage_uri.startswith("s3://"):
+        path_without_scheme = storage_uri[len("s3://") :]
+        parts = path_without_scheme.split("/", 1)
+        if len(parts) != 2:
+            raise FileNotFoundError(f"Invalid S3 URI: {storage_uri}")
+        bucket, object_path = parts
+        stub_root = os.getenv("S3_STUB_STORAGE_PATH", "./data/s3-stub").strip() or "./data/s3-stub"
+        return Path(stub_root) / bucket / object_path
+    return Path(storage_uri)
+
+
+def _load_document_bytes(document: Document) -> bytes:
+    path = _resolve_document_path(str(document.storage_uri))
+    if not path.exists():
+        raise FileNotFoundError(f"Document content not found: {path}")
+    return path.read_bytes()
+
+
+def _persist_extraction_result(
+    session: Session,
+    *,
+    document_id: str,
+    doc_type: str,
+    model: str,
+    raw_text: str,
+    structured_payload: dict[str, object],
+    confidence_map: dict[str, object],
+    review_required: bool,
+) -> None:
+    existing = session.query(ExtractionResult).filter(ExtractionResult.document_id == document_id).one_or_none()
+    if existing is None:
+        existing = ExtractionResult(
+            id=str(uuid4()),
+            document_id=document_id,
+            schema_version="v1",
+            doc_type=doc_type,
+            raw_ocr_text=raw_text,
+            structured_payload=structured_payload,
+            confidence_map=confidence_map,
+            is_review_required=review_required,
+        )
+        session.add(existing)
+    else:
+        existing.raw_ocr_text = raw_text
+        existing.structured_payload = structured_payload
+        existing.confidence_map = confidence_map
+        existing.is_review_required = review_required
+        existing.doc_type = doc_type
+    _ = model  # retained for future output persistence when fallback routing is added.
 
 
 def create_celery_app() -> Celery:
@@ -82,17 +147,45 @@ def process_document_job(job_id: str, request_id: str = "unknown") -> dict[str, 
         transition_job_status(job, "processing")
         session.commit()
 
-        # Placeholder processing until OCR pipeline tasks are implemented.
-        transition_job_status(job, "completed")
+        document = session.get(Document, job.document_id)
+        if document is None:
+            raise RuntimeError(f"Document not found for job {job_id}")
+
+        raw_content = _load_document_bytes(document)
+        preprocessed = preprocess_image_content(raw_content, str(document.mime_type))
+        vllm_client = build_vllm_client_from_env()
+        dots_adapter = DotsOCRAdapter(client=vllm_client, model_name=_dots_model_name())
+        extraction = dots_adapter.extract(
+            document_content=preprocessed.content,
+            mime_type=preprocessed.mime_type,
+            filename=str(document.filename),
+            doc_type_hint="invoice",
+        )
+        _persist_extraction_result(
+            session,
+            document_id=document.id,
+            doc_type="invoice",
+            model=extraction.model,
+            raw_text=extraction.raw_text,
+            structured_payload=extraction.structured_payload,
+            confidence_map=extraction.confidence_map,
+            review_required=extraction.review_required,
+        )
+        transition_job_status(job, "review_required" if extraction.review_required else "completed")
         session.commit()
         emit_worker_log(
             event="job_processing_completed",
             request_id=safe_request_id,
             job_id=job.id,
             document_id=job.document_id,
-            status="completed",
+            status=str(job.status),
+            details={
+                "model": extraction.model,
+                "preprocess_steps": list(preprocessed.applied_steps),
+                "review_required": extraction.review_required,
+            },
         )
-        return {"job_id": job_id, "status": "completed"}
+        return {"job_id": job_id, "status": str(job.status)}
     except Exception as exc:  # pragma: no cover - defensive path
         session.rollback()
         failed_job = session.get(Job, job_id)

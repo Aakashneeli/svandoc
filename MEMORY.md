@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-15 (T-022 complete)
+Last updated: 2026-02-15 (T-023 complete)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -60,18 +60,19 @@ Completed:
 7. `T-019` to `T-020`: job lifecycle state machine + DB transition enforcement and worker structured logging context (`request_id`, `job_id`, `document_id`).
 8. `T-021`: image preprocessing module added (orientation correction, denoise, deskew) with sample-corpus tests.
 9. `T-022`: vLLM client module added with timeout, retry/backoff policy, and metrics hooks.
-10. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
-11. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
-12. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
+10. `T-023`: `dots.ocr` adapter integrated in worker path with extraction persistence to `extraction_results`.
+11. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
+12. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
+13. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
 
 Task status source of truth: `tasks.md`.
 
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-023` Integrate `dots.ocr` extraction adapter.
-2. `T-024` Integrate `Chandra` fallback extraction adapter.
-3. `T-025` Implement routing rules from `dots.ocr` to fallback.
+1. `T-024` Integrate `Chandra` fallback extraction adapter.
+2. `T-025` Implement routing rules from `dots.ocr` to fallback.
+3. `T-026` Normalize raw OCR output into canonical schema.
 4. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
 
 Execution rule:
@@ -140,6 +141,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 11. `T-100` migration validation succeeded against Supabase Postgres (`20260214_0004` head) using pooled connection settings.
 12. `T-021` preprocessing tests passed on generated sample corpus (clean/noisy/skewed) and full backend suite (`44` tests) on `2026-02-15`.
 13. `T-022` vLLM client retry policy tests passed (timeouts, `503`, non-retryable `400`) and full backend suite (`48` tests) on `2026-02-15`.
+14. `T-023` `dots.ocr` adapter and worker integration tests passed (including extraction persistence + review-required branching) and full backend suite (`51` tests) on `2026-02-15`.
 
 ## 11) Update Protocol For Future Sessions
 

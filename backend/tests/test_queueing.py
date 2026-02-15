@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -10,7 +11,9 @@ from sqlalchemy.orm import sessionmaker
 
 from svandoc_backend.db import Base
 from svandoc_backend.models.document import Document
+from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
+from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.queueing import JOB_SESSION_FACTORY, celery_app, enqueue_processing_job, process_document_job
 import svandoc_backend.queueing as queueing
 
@@ -46,6 +49,8 @@ class QueueingIntegrationTests(unittest.TestCase):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def _insert_document_and_job(self, job_id: str) -> None:
+        document_path = self.test_dir / "invoice.pdf"
+        document_path.write_bytes(b"%PDF-1.4 test document bytes")
         session = self.SessionTesting()
         try:
             document = Document(
@@ -55,7 +60,7 @@ class QueueingIntegrationTests(unittest.TestCase):
                 filename="invoice.pdf",
                 mime_type="application/pdf",
                 checksum="checksum-1",
-                storage_uri="/tmp/invoice.pdf",
+                storage_uri=str(document_path),
                 page_count=1,
             )
             job = Job(
@@ -79,7 +84,22 @@ class QueueingIntegrationTests(unittest.TestCase):
         job_id = "job-eager-1"
         self._insert_document_and_job(job_id)
 
-        with patch("svandoc_backend.queueing.emit_worker_log") as log_mock:
+        with ExitStack() as stack:
+            log_mock = stack.enter_context(patch("svandoc_backend.queueing.emit_worker_log"))
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    return_value=object(),
+                )
+            )
+            extract_mock = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            extract_mock.return_value = OCRExtractionResult(
+                model="dots.ocr",
+                raw_text="ACME INVOICE",
+                structured_payload={"vendor_name": "ACME"},
+                confidence_map={"vendor_name": 0.98},
+                review_required=False,
+            )
             task_id = enqueue_processing_job(job_id, request_id="req-queue-test")
 
         self.assertIsInstance(task_id, str)
@@ -87,6 +107,9 @@ class QueueingIntegrationTests(unittest.TestCase):
         session = self.SessionTesting()
         try:
             job = session.get(Job, job_id)
+            extraction = (
+                session.query(ExtractionResult).filter(ExtractionResult.document_id == "doc-1").one_or_none()
+            )
         finally:
             session.close()
 
@@ -96,6 +119,10 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(job.attempt_count, 1)
         self.assertIsNotNone(job.started_at)
         self.assertIsNotNone(job.finished_at)
+        self.assertIsNotNone(extraction)
+        assert extraction is not None
+        self.assertEqual(extraction.raw_ocr_text, "ACME INVOICE")
+        self.assertFalse(extraction.is_review_required)
         self.assertGreaterEqual(log_mock.call_count, 2)
         for call in log_mock.call_args_list:
             kwargs = call.kwargs
@@ -121,6 +148,37 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(kwargs["request_id"], "req-missing")
         self.assertEqual(kwargs["job_id"], "missing-job-id")
         self.assertEqual(kwargs["document_id"], "unknown")
+
+    def test_process_document_job_sets_review_required_when_confidence_is_low(self) -> None:
+        job_id = "job-review-required"
+        self._insert_document_and_job(job_id)
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch(
+                    "svandoc_backend.queueing.build_vllm_client_from_env",
+                    return_value=object(),
+                )
+            )
+            extract_mock = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+            extract_mock.return_value = OCRExtractionResult(
+                model="dots.ocr",
+                raw_text="LOW CONFIDENCE",
+                structured_payload={"vendor_name": "Maybe"},
+                confidence_map={"vendor_name": 0.52},
+                review_required=True,
+            )
+
+            result = process_document_job(job_id, request_id="req-review")
+
+        self.assertEqual(result["status"], "review_required")
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "review_required")
 
 
 if __name__ == "__main__":
