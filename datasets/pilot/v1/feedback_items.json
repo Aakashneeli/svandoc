@@ -1,0 +1,69 @@
+{
+  "version": "v1",
+  "items": [
+    {
+      "id": "FB-001",
+      "title": "Clarify upload validation messages",
+      "impact": 5,
+      "effort": 2,
+      "frequency": 4,
+      "owner": "frontend",
+      "notes": "Users need immediate and actionable guidance when uploads fail."
+    },
+    {
+      "id": "FB-002",
+      "title": "Add quick correction chips for common amount/date fields",
+      "impact": 4,
+      "effort": 3,
+      "frequency": 4,
+      "owner": "frontend",
+      "notes": "Repeated correction interactions are slower than expected."
+    },
+    {
+      "id": "FB-003",
+      "title": "Improve low-confidence reason visibility in review panel",
+      "impact": 4,
+      "effort": 2,
+      "frequency": 3,
+      "owner": "frontend",
+      "notes": "Users want to understand why a field was flagged."
+    },
+    {
+      "id": "FB-004",
+      "title": "Add retry hint on rate-limit and transient API failures",
+      "impact": 3,
+      "effort": 2,
+      "frequency": 3,
+      "owner": "backend",
+      "notes": "Pilot users retried manually without clear guidance."
+    },
+    {
+      "id": "FB-005",
+      "title": "Expose document-level processing ETA in jobs view",
+      "impact": 3,
+      "effort": 4,
+      "frequency": 2,
+      "owner": "backend",
+      "notes": "Status visibility is sufficient but ETA would reduce uncertainty."
+    },
+    {
+      "id": "FB-006",
+      "title": "Add keyboard navigation for inline review edits",
+      "impact": 3,
+      "effort": 3,
+      "frequency": 2,
+      "owner": "frontend",
+      "notes": "Power users requested a faster edit loop."
+    },
+    {
+      "id": "FB-007",
+      "title": "Show export history timestamps in local timezone",
+      "impact": 2,
+      "effort": 2,
+      "frequency": 2,
+      "owner": "frontend",
+      "notes": "UTC-only timestamps were confusing for some pilot users."
+    }
+  ]
+}
+
