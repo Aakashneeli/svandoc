@@ -1,6 +1,6 @@
 # Local Setup Guide (No Docker)
 
-Last updated: 2026-02-15
+Last updated: 2026-02-22
 
 This guide sets up svanDoc for local-first development on a clean machine.
 
@@ -88,11 +88,13 @@ Minimum local values to verify:
 4. `LOCAL_STORAGE_PATH`
 5. `API_PORT` and `FRONTEND_PORT`
 6. `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT_SECONDS`, `DB_POOL_RECYCLE_SECONDS`
-7. `VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`
-8. `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
-9. `OCR_FALLBACK_MODEL=datalab-to/chandra`
-10. `ALERT_FAILED_RECENT_THRESHOLD`, `ALERT_QUEUE_BACKLOG_DEPTH`, `ALERT_API_ERROR_RATE_THRESHOLD`
-11. `RATE_LIMIT_ENABLED`, `RATE_LIMIT_WINDOW_SECONDS`, `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_UPLOAD_MAX_REQUESTS`, `RATE_LIMIT_BLOCK_SECONDS`
+7. `VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`, `VLLM_API_KEY`
+8. `RUNPOD_ENDPOINT_ID_PRIMARY`, `RUNPOD_ENDPOINT_ID_FALLBACK`
+9. `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
+10. `OCR_FALLBACK_MODEL=datalab-to/chandra`
+11. `ALERT_FAILED_RECENT_THRESHOLD`, `ALERT_QUEUE_BACKLOG_DEPTH`, `ALERT_API_ERROR_RATE_THRESHOLD`
+12. `RATE_LIMIT_ENABLED`, `RATE_LIMIT_WINDOW_SECONDS`, `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_UPLOAD_MAX_REQUESTS`, `RATE_LIMIT_BLOCK_SECONDS`
+13. Keep `VLLM_API_KEY` out of git; store only in untracked `.env` and cloud secret managers.
 
 ## 4. Startup
 
@@ -133,17 +135,26 @@ Run this when validating a new Supabase environment:
 3. Run `myvenv\Scripts\python.exe -m alembic -c backend\alembic.ini current` from repo root.
 4. Confirm output revision is `20260214_0004` (or newer if additional migrations were added).
 
-## 7. Inference Environment Contract
+## 7. Inference Environment Contract (RunPod First)
 
-Use this canonical local inference contract before OCR pipeline tasks:
+Use this canonical RunPod contract for default OCR runtime:
 
-1. Primary endpoint: `VLLM_BASE_URL=http://localhost:11434/v1`
-2. Fallback endpoint: `VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1`
-3. Primary model ID: `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
-4. Fallback model ID: `OCR_FALLBACK_MODEL=datalab-to/chandra`
-5. Keep model IDs as upstream canonical Hugging Face IDs; treat quantized/community forks as optional overrides.
+1. Primary endpoint URL: `VLLM_BASE_URL=https://api.runpod.ai/v2/<primary-endpoint-id>/openai/v1`
+2. Fallback endpoint URL: `VLLM_FALLBACK_BASE_URL=https://api.runpod.ai/v2/<fallback-endpoint-id>/openai/v1`
+3. API auth secret: `VLLM_API_KEY=<runpod-api-token>`
+4. Optional endpoint IDs: `RUNPOD_ENDPOINT_ID_PRIMARY`, `RUNPOD_ENDPOINT_ID_FALLBACK`
+5. Primary model ID: `OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr`
+6. Fallback model ID: `OCR_FALLBACK_MODEL=datalab-to/chandra`
+7. Keep model IDs as upstream canonical Hugging Face IDs; treat quantized/community forks as optional overrides.
 
-Detailed provisioning steps:
+Development-only local inference fallback (not default, not production):
+
+1. `VLLM_BASE_URL=http://localhost:11434/v1`
+2. `VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1`
+3. `VLLM_API_KEY=` (empty for local server)
+4. Use this path only when intentionally validating local model serving behavior.
+
+Detailed fallback provisioning steps:
 
 1. `docs/inference-model-setup.md`
 
@@ -167,4 +178,3 @@ powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1
 ```
 
 When `APP_ENV=staging`, startup scripts load base `.env` values and overlay values from `.env.staging` (or `.env.staging.example` if `.env.staging` is not present).
-

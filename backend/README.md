@@ -51,11 +51,13 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 
 ## Inference Notes
 
-1. Primary OCR endpoint: `VLLM_BASE_URL` and model `OCR_DEFAULT_MODEL`.
-2. Fallback OCR endpoint: `VLLM_FALLBACK_BASE_URL` and model `OCR_FALLBACK_MODEL`.
-3. Canonical upstream model IDs:
+1. RunPod-first primary OCR endpoint: `VLLM_BASE_URL` and model `OCR_DEFAULT_MODEL`.
+2. RunPod-first fallback OCR endpoint: `VLLM_FALLBACK_BASE_URL` and model `OCR_FALLBACK_MODEL`.
+3. RunPod auth secret: `VLLM_API_KEY` (keep in untracked env or managed secret store).
+4. Optional RunPod endpoint IDs for ops: `RUNPOD_ENDPOINT_ID_PRIMARY`, `RUNPOD_ENDPOINT_ID_FALLBACK`.
+5. Canonical upstream model IDs:
    - `rednote-hilab/dots.ocr`
    - `datalab-to/chandra`
-4. Validate dual-endpoint inference setup:
+6. Local vLLM endpoint overrides are development-only fallback and not production default.
+7. Validate dual-endpoint inference setup:
    - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1`
-

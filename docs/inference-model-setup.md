@@ -1,16 +1,25 @@
-# Inference Model Provisioning (Hugging Face + Dual vLLM)
+# Local Inference Fallback Provisioning (Hugging Face + Dual vLLM)
 
-Last updated: 2026-02-15
+Last updated: 2026-02-22
 
-This runbook provisions the canonical OCR models used by svanDoc:
+This runbook is for development-only local fallback inference.
+Default svanDoc inference runtime uses RunPod-hosted dual endpoints configured in `.env`.
+
+Canonical OCR models:
 
 1. Primary: `rednote-hilab/dots.ocr`
 2. Fallback: `datalab-to/chandra`
 
-svanDoc expects dual endpoints:
+For local fallback mode, svanDoc expects dual local endpoints:
 
-1. Primary endpoint: `VLLM_BASE_URL` (default `http://localhost:11434/v1`)
-2. Fallback endpoint: `VLLM_FALLBACK_BASE_URL` (default `http://localhost:11435/v1`)
+1. Primary endpoint: `VLLM_BASE_URL=http://localhost:11434/v1`
+2. Fallback endpoint: `VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1`
+
+Production/staging policy:
+
+1. Use RunPod endpoint URLs for `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL`.
+2. Keep `VLLM_API_KEY` in secret managers and untracked env files only.
+3. Do not rely on local GPU fallback in production outage handling.
 
 ## 1) Prerequisites
 
@@ -63,13 +72,14 @@ python -m vllm.entrypoints.openai.api_server `
   --port 11435
 ```
 
-## 6) `.env` Contract
+## 6) Local Fallback `.env` Overrides
 
 Use these values in `.env`:
 
 ```powershell
 VLLM_BASE_URL=http://localhost:11434/v1
 VLLM_FALLBACK_BASE_URL=http://localhost:11435/v1
+VLLM_API_KEY=
 OCR_DEFAULT_MODEL=rednote-hilab/dots.ocr
 OCR_FALLBACK_MODEL=datalab-to/chandra
 ```
@@ -113,4 +123,3 @@ Expected:
 1. Exit code `0`
 2. Evidence file written at `.local-sandbox/inference-smoke.json` (or `INFERENCE_SMOKE_OUTPUT_PATH`)
 3. `overall_success=true` with one successful completion check per model endpoint
-
