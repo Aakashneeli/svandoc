@@ -78,6 +78,38 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(payload["amounts"]["subtotal"], 0.0)
         self.assertEqual(payload["metadata"]["page_count"], 1)
 
+    def test_normalize_invoice_prefers_advanced_table_line_items(self) -> None:
+        payload = normalize_ocr_output(
+            doc_type="invoice",
+            document_id="doc-4",
+            source_file_name="invoice-table.pdf",
+            page_count=2,
+            raw_text="TABLE RAW",
+            structured_payload={
+                "line_items": [{"description": "placeholder", "quantity": 1, "unit_price": 1, "line_total": 1}],
+                "tables": [
+                    {
+                        "table_id": "line_items",
+                        "page_number": 1,
+                        "headers": ["Description", "Qty", "Unit Price", "Amount"],
+                        "rows": [["Design Work", "2", "50.00", "100.00"]],
+                    },
+                    {
+                        "table_id": "line_items",
+                        "page_number": 2,
+                        "headers": ["Description", "Qty", "Unit Price", "Amount"],
+                        "rows": [["Support", "1", "25.00", "25.00"]],
+                    },
+                ],
+            },
+            review_required=False,
+        )
+
+        self.assertEqual(len(payload["line_items"]), 2)
+        self.assertEqual(payload["line_items"][0]["description"], "Design Work")
+        self.assertEqual(payload["line_items"][1]["description"], "Support")
+        self.assertEqual(payload["line_items"][1]["line_total"], 25.0)
+
 
 if __name__ == "__main__":
     unittest.main()

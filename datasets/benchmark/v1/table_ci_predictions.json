@@ -1,0 +1,27 @@
+{
+  "dataset": "svandoc-table-benchmark",
+  "version": "ci-baseline-v1",
+  "samples": [
+    {
+      "sample_id": "invoice_table_multipage_001",
+      "doc_type": "invoice",
+      "structured_payload": {
+        "line_items": [
+          {"description": "Design Work", "quantity": 2.0, "unit_price": 50.0, "line_total": 100.0},
+          {"description": "Support", "quantity": 1.0, "unit_price": 25.0, "line_total": 25.0},
+          {"description": "License", "quantity": 3.0, "unit_price": 10.0, "line_total": 30.0}
+        ]
+      }
+    },
+    {
+      "sample_id": "receipt_table_merged_001",
+      "doc_type": "receipt",
+      "structured_payload": {
+        "line_items": [
+          {"description": "Bundle Plan", "quantity": 1.0, "unit_price": 15.0, "line_total": 15.0},
+          {"description": "Bundle Plan", "quantity": 2.0, "unit_price": 15.0, "line_total": 30.0}
+        ]
+      }
+    }
+  ]
+}

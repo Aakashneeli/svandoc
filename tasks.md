@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-15 (through T-068)
+Last updated: 2026-02-22 (through T-075)
 
 ## How to use this file
 
@@ -92,7 +92,7 @@ Last updated: 2026-02-15 (through T-068)
 | T-072 | P2 | [DONE 2026-02-16] Publish developer docs and starter SDKs (TypeScript and Python) | T-071 | Quickstart apps for both SDKs run against staging API | Codex |
 | T-073 | P2 | [DONE 2026-02-16] Implement custom extraction templates (schema builder + field mapping UI) | T-026, T-041 | Users can define and apply templates to recurring document formats | Codex |
 | T-074 | P2 | [DONE 2026-02-16] Implement template learning from user corrections (opt-in) | T-073, T-041 | Repeated corrections improve extraction suggestions for matching layouts | Codex |
-| T-075 | P2 | Implement advanced table extraction (multi-page stitching, merged cells) | T-024, T-026 | Complex table benchmark accuracy improves and passes regression gates | Unassigned |
+| T-075 | P2 | [DONE 2026-02-22] Implement advanced table extraction (multi-page stitching, merged cells) | T-024, T-026 | Complex table benchmark accuracy improves and passes regression gates | Codex |
 | T-076 | P2 | Add handwriting-focused extraction route and quality benchmark | T-024, T-046 | Handwriting test corpus tracked with explicit acceptance metrics | Unassigned |
 | T-077 | P2 | Expand multilingual support with automatic language detection | T-023, T-024 | Additional language pack support validated on multilingual dataset | Unassigned |
 | T-078 | P2 | Implement immutable audit trail and exportable audit reports | T-056 | Every extraction edit/export event is queryable and exportable | Unassigned |
@@ -151,4 +151,3 @@ Last updated: 2026-02-15 (through T-068)
 | Reliability | Retry logic and failure handling pass integration tests |
 | Usability | Pilot users complete upload -> review -> export with >= 80 percent success |
 | Security | Role checks and retention/delete workflows validated |
-

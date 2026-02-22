@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from svandoc_backend.table_extraction import extract_line_items_from_tables
+
 SCHEMA_VERSION = "1.0.0"
 
 
@@ -76,7 +78,11 @@ def _normalize_invoice_payload(
             "discount": _optional_number(structured_payload.get("discount")),
             "total": _coerce_number(structured_payload.get("total")),
         },
-        "line_items": _normalize_line_items(structured_payload.get("line_items"), include_category=False),
+        "line_items": _normalize_line_items(
+            structured_payload.get("line_items"),
+            include_category=False,
+            structured_payload=structured_payload,
+        ),
         "payment_terms": _nullable_string(structured_payload.get("payment_terms")),
         "confidence": {"overall": 0.0, "fields": {}},
         "raw_text": str(raw_text or ""),
@@ -121,7 +127,11 @@ def _normalize_receipt_payload(
             "tip": _optional_number(structured_payload.get("tip")),
             "total": _coerce_number(structured_payload.get("total")),
         },
-        "line_items": _normalize_line_items(structured_payload.get("line_items"), include_category=True),
+        "line_items": _normalize_line_items(
+            structured_payload.get("line_items"),
+            include_category=True,
+            structured_payload=structured_payload,
+        ),
         "confidence": {"overall": 0.0, "fields": {}},
         "raw_text": str(raw_text or ""),
         "review_required": bool(review_required),
@@ -140,7 +150,19 @@ def _normalize_invoice_customer(payload: dict[str, Any]) -> dict[str, Any] | Non
     }
 
 
-def _normalize_line_items(value: Any, *, include_category: bool) -> list[dict[str, Any]]:
+def _normalize_line_items(
+    value: Any,
+    *,
+    include_category: bool,
+    structured_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    advanced_table_items = extract_line_items_from_tables(
+        structured_payload=structured_payload,
+        include_category=include_category,
+    )
+    if advanced_table_items:
+        value = advanced_table_items
+
     if not isinstance(value, list):
         return []
 

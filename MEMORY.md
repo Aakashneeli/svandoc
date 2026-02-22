@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-16 (updated after T-074)
+Last updated: 2026-02-22 (completed T-075)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -50,6 +50,7 @@ Important runtime notes for this machine/session:
 10. Inference provisioning is now explicitly tracked before routing: complete `T-106` to `T-109` before `T-025`.
 11. Canonical model IDs are `rednote-hilab/dots.ocr` (primary) and `datalab-to/chandra` (fallback), with dual endpoints `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL`.
 12. Outbound webhook delivery is controlled by `WEBHOOK_ENDPOINTS`, `WEBHOOK_SIGNING_SECRET`, and retry vars (`WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_TIMEOUT_SECONDS`, `WEBHOOK_RETRY_BACKOFF_SECONDS`).
+13. Current Linux sandbox runtime uses Python `3.12`; FastAPI `TestClient`-based unit tests can hang in this environment (observed in `anyio/from_thread` path), so endpoint/e2e test completion is currently blocked until runtime is stabilized (preferred: Python `3.11`).
 
 ## 5) Completed Task Batches
 
@@ -119,6 +120,7 @@ Completed:
 63. `T-072`: Developer SDK package starters published for Python and TypeScript (`sdk/python`, `sdk/typescript`) with runnable quickstart apps, shared public API workflow methods (upload -> job -> extraction -> export), and developer runbook documentation (`docs/developer-sdks.md`).
 64. `T-073`: Custom extraction templates implemented with workspace-scoped template persistence (`extraction_templates` table + migration `20260216_0012`), template create/list/apply endpoints (`/api/templates`, `/api/documents/{id}/templates/apply`), mapped output persistence under `structured_payload.template_output`, and review-page schema/mapping UI to create/apply templates.
 65. `T-074`: Template learning (opt-in) implemented with persisted learning rules (`template_learning_rules` table + migration `20260216_0013`), correction-event aggregation keyed by team/template/field/value, request-level opt-in control (`x-template-learning-opt-in`), and learned suggestion emission during template apply (`template_output.learned_suggestions`) for repeated corrections.
+66. `T-075`: Advanced table extraction implemented with multi-page table stitching and merged-cell expansion (`svandoc_backend.table_extraction`), integrated into normalization to prefer table-derived line items when available, and benchmark regression gate coverage added for complex table scenarios.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -128,11 +130,28 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-075` Implement advanced table extraction (multi-page stitching, merged cells).
-2. `T-076` Add handwriting-focused extraction route and quality benchmark.
-3. `T-077` Expand multilingual support with automatic language detection.
-4. `T-078` Implement immutable audit trail and exportable audit reports.
-5. Deployment tasks `T-102` to `T-105` are intentionally deferred until after core MVP extraction flow progress.
+1. `T-076` Add handwriting-focused extraction route and quality benchmark. `NEXT`
+2. `T-077` Expand multilingual support with automatic language detection.
+3. `T-078` Implement immutable audit trail and exportable audit reports.
+4. Deployment tasks `T-102` to `T-105` remain deferred until after core MVP extraction flow progress.
+
+Completed snapshot for `T-075` (2026-02-22):
+1. Implemented advanced table extraction helper module at `backend/src/svandoc_backend/table_extraction.py` with multi-page stitching and merged-cell expansion.
+2. Integrated advanced table parsing into normalization path in `backend/src/svandoc_backend/normalization.py` (prefers advanced table-derived line items when available).
+3. Added new tests/datasets:
+   - `backend/tests/test_table_extraction.py`
+   - `backend/tests/test_table_quality_benchmark.py`
+   - `datasets/benchmark/v1/table_ground_truth.json`
+   - `datasets/benchmark/v1/table_ci_predictions.json`
+4. Targeted tests passed:
+   - `backend/tests/test_table_extraction.py`
+   - `backend/tests/test_normalization.py`
+   - `backend/tests/test_table_quality_benchmark.py`
+   - `backend/tests/test_quality_eval.py`
+   - `backend/tests/test_quality_gate.py`
+   - `backend/tests/test_queueing.py`
+5. Task marked complete in `tasks.md` based on DoD satisfaction (complex table benchmark coverage and regression gate pass on targeted suite).
+6. Cross-cutting environment caveat remains: full backend `unittest discover` run still hangs in this Python `3.12` sandbox when `TestClient`-based tests execute.
 
 Execution rule:
 1. Implement in order.
@@ -256,6 +275,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 67. `T-072` SDK quickstart checks passed on `2026-02-16`: `backend/tests/test_sdk_quickstarts.py` and `backend/tests/test_public_api.py` passed (`6` tests via `unittest`), including execution of both `sdk/python/examples/quickstart.py` and `sdk/typescript/examples/quickstart.mjs` against a mock public API host.
 68. `T-073` extraction-template checks passed on `2026-02-16`: `backend/tests/test_extraction_templates.py`, `backend/tests/test_core_schema.py`, and `backend/tests/test_extraction_endpoint.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0012` head; frontend `typecheck`, `lint`, and `test` passed with new review-page template create/apply UI.
 69. `T-074` template-learning checks passed on `2026-02-16`: `backend/tests/test_template_learning.py`, `backend/tests/test_extraction_templates.py`, and `backend/tests/test_core_schema.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0013` head and confirmed learning-rule table/indexes; frontend smoke tests remained green.
+70. `T-075` advanced-table checks passed on `2026-02-22`: `backend/tests/test_table_extraction.py`, `backend/tests/test_normalization.py`, `backend/tests/test_table_quality_benchmark.py`, `backend/tests/test_quality_eval.py`, `backend/tests/test_quality_gate.py`, and `backend/tests/test_queueing.py` passed (`26` tests via `unittest`); full `unittest discover` remains blocked in this Python `3.12` sandbox by a `TestClient`-path hang (timed out after starting `test_alerts`).
 
 ## 11) Update Protocol For Future Sessions
 
