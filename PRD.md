@@ -19,7 +19,7 @@ Build a practical, affordable document extraction platform that reduces manual b
 
 One-line value proposition:
 `Upload documents. Extract structured data. Review quickly. Export anywhere.`
-
+-
 ## 3. Product Goals and Success Criteria
 
 ### Primary goals (MVP)
@@ -61,7 +61,7 @@ One-line value proposition:
 3. Confidence scoring with human review UI.
 4. Exports: `CSV`, `XLSX`, `JSON`.
 5. Document library with job status and search by metadata.
-6. Team roles: Admin, Editor, Viewer.
+6. Team roles: Admin, Editor, Viewer....
 
 ### Explicitly out of scope for MVP
 1. Payment and subscription workflows.
