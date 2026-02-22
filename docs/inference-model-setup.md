@@ -122,4 +122,5 @@ Expected:
 
 1. Exit code `0`
 2. Evidence file written at `.local-sandbox/inference-smoke.json` (or `INFERENCE_SMOKE_OUTPUT_PATH`)
-3. `overall_success=true` with one successful completion check per model endpoint
+3. `result_code=SMOKE_OK` and `overall_success=true` with one successful completion check per model endpoint
+4. On failure, deterministic `failure_codes` identify the exact primary/fallback check that failed.

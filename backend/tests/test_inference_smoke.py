@@ -42,8 +42,18 @@ def _response(status_code: int, payload: dict[str, Any], url: str) -> httpx.Resp
 class InferenceSmokeTests(unittest.TestCase):
     def test_run_inference_smoke_success_for_both_targets(self) -> None:
         targets = [
-            InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="rednote-hilab/dots.ocr"),
-            InferenceTarget(role="fallback", base_url="http://localhost:11435/v1", model_name="datalab-to/chandra"),
+            InferenceTarget(
+                role="primary",
+                base_url="http://localhost:11434/v1",
+                model_name="rednote-hilab/dots.ocr",
+                endpoint_id="ep-primary",
+            ),
+            InferenceTarget(
+                role="fallback",
+                base_url="http://localhost:11435/v1",
+                model_name="datalab-to/chandra",
+                endpoint_id="ep-fallback",
+            ),
         ]
         responses = [
             _response(
@@ -71,9 +81,13 @@ class InferenceSmokeTests(unittest.TestCase):
         evidence = run_inference_smoke(targets=targets, client_factory=lambda **_: client)
 
         self.assertTrue(evidence["overall_success"])
+        self.assertEqual("SMOKE_OK", evidence["result_code"])
+        self.assertEqual([], evidence["failure_codes"])
         self.assertEqual(len(evidence["checks"]), 2)
+        self.assertTrue(all(item["status"] == "ok" for item in evidence["checks"]))
         self.assertTrue(all(item["models_endpoint_ok"] for item in evidence["checks"]))
         self.assertTrue(all(item["completion_ok"] for item in evidence["checks"]))
+        self.assertTrue(all(item["failure_codes"] == [] for item in evidence["checks"]))
 
     def test_run_inference_smoke_reports_failure_when_completion_fails(self) -> None:
         targets = [InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="rednote-hilab/dots.ocr")]
@@ -87,11 +101,55 @@ class InferenceSmokeTests(unittest.TestCase):
         self.assertFalse(evidence["overall_success"])
         self.assertEqual(len(evidence["checks"]), 1)
         check = evidence["checks"][0]
+        self.assertEqual("failed", check["status"])
         self.assertTrue(check["models_endpoint_ok"])
         self.assertFalse(check["completion_ok"])
-        self.assertTrue(any("completion_check_failed" in err for err in check["errors"]))
+        self.assertIn("PRIMARY_COMPLETION_FAILED", check["failure_codes"])
+        self.assertIn("PRIMARY_COMPLETION_FAILED", evidence["failure_codes"])
+        self.assertEqual("PRIMARY_COMPLETION_FAILED", evidence["result_code"])
+        self.assertTrue(any("PRIMARY_COMPLETION_FAILED" in err for err in check["errors"]))
+
+    def test_run_inference_smoke_reports_failure_when_target_model_missing(self) -> None:
+        targets = [InferenceTarget(role="primary", base_url="http://localhost:11434/v1", model_name="rednote-hilab/dots.ocr")]
+        responses = [
+            _response(200, {"data": [{"id": "different/model"}]}, "http://localhost:11434/v1/models"),
+            _response(
+                200,
+                {"choices": [{"message": {"content": "{\"status\":\"ok\"}"}}]},
+                "http://localhost:11434/v1/chat/completions",
+            ),
+        ]
+        client = _StubClient(responses)
+        evidence = run_inference_smoke(targets=targets, client_factory=lambda **_: client)
+
+        self.assertFalse(evidence["overall_success"])
+        self.assertEqual("PRIMARY_MODEL_NOT_AVAILABLE", evidence["result_code"])
+        self.assertIn("PRIMARY_MODEL_NOT_AVAILABLE", evidence["failure_codes"])
+        check = evidence["checks"][0]
+        self.assertTrue(check["models_endpoint_ok"])
+        self.assertTrue(check["completion_ok"])
+        self.assertFalse(check["model_list_contains_target"])
+        self.assertIn("PRIMARY_MODEL_NOT_AVAILABLE", check["failure_codes"])
+
+    def test_run_inference_smoke_fails_fast_for_unconfigured_endpoint(self) -> None:
+        targets = [
+            InferenceTarget(
+                role="primary",
+                base_url="https://api.runpod.ai/v2/<primary-endpoint-id>/openai/v1",
+                model_name="rednote-hilab/dots.ocr",
+            )
+        ]
+        client = _StubClient([])
+        evidence = run_inference_smoke(targets=targets, client_factory=lambda **_: client)
+
+        self.assertFalse(evidence["overall_success"])
+        self.assertEqual("PRIMARY_ENDPOINT_UNCONFIGURED", evidence["result_code"])
+        self.assertIn("PRIMARY_ENDPOINT_UNCONFIGURED", evidence["failure_codes"])
+        check = evidence["checks"][0]
+        self.assertEqual("failed", check["status"])
+        self.assertEqual([], client.calls)
+        self.assertIn("PRIMARY_ENDPOINT_UNCONFIGURED", check["failure_codes"])
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -13,6 +13,16 @@ import httpx
 
 DEFAULT_TIMEOUT_SECONDS = 20.0
 DEFAULT_OUTPUT_PATH = ".local-sandbox/inference-smoke.json"
+DEFAULT_PRIMARY_BASE_URL = "https://api.runpod.ai/v2/<primary-endpoint-id>/openai/v1"
+DEFAULT_FALLBACK_BASE_URL = "https://api.runpod.ai/v2/<fallback-endpoint-id>/openai/v1"
+DEFAULT_PRIMARY_MODEL = "rednote-hilab/dots.ocr"
+DEFAULT_FALLBACK_MODEL = "datalab-to/chandra"
+DEFAULT_RESULT_CODE_OK = "SMOKE_OK"
+
+ENDPOINT_UNCONFIGURED = "ENDPOINT_UNCONFIGURED"
+MODELS_UNREACHABLE = "MODELS_UNREACHABLE"
+MODEL_NOT_AVAILABLE = "MODEL_NOT_AVAILABLE"
+COMPLETION_FAILED = "COMPLETION_FAILED"
 
 
 @dataclass(frozen=True)
@@ -20,6 +30,7 @@ class InferenceTarget:
     role: str
     base_url: str
     model_name: str
+    endpoint_id: str | None = None
 
 
 def _read_float_env(name: str, default: float) -> float:
@@ -32,16 +43,26 @@ def _read_float_env(name: str, default: float) -> float:
 
 
 def _build_targets_from_env() -> list[InferenceTarget]:
-    primary_url = os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1").strip() or "http://localhost:11434/v1"
-    fallback_url = (
-        os.getenv("VLLM_FALLBACK_BASE_URL", "http://localhost:11435/v1").strip() or "http://localhost:11435/v1"
-    )
-    primary_model = os.getenv("OCR_DEFAULT_MODEL", "rednote-hilab/dots.ocr").strip() or "rednote-hilab/dots.ocr"
-    fallback_model = os.getenv("OCR_FALLBACK_MODEL", "datalab-to/chandra").strip() or "datalab-to/chandra"
+    primary_url = os.getenv("VLLM_BASE_URL", DEFAULT_PRIMARY_BASE_URL).strip() or DEFAULT_PRIMARY_BASE_URL
+    fallback_url = os.getenv("VLLM_FALLBACK_BASE_URL", DEFAULT_FALLBACK_BASE_URL).strip() or DEFAULT_FALLBACK_BASE_URL
+    primary_model = os.getenv("OCR_DEFAULT_MODEL", DEFAULT_PRIMARY_MODEL).strip() or DEFAULT_PRIMARY_MODEL
+    fallback_model = os.getenv("OCR_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL).strip() or DEFAULT_FALLBACK_MODEL
+    primary_endpoint_id = os.getenv("RUNPOD_ENDPOINT_ID_PRIMARY", "").strip() or None
+    fallback_endpoint_id = os.getenv("RUNPOD_ENDPOINT_ID_FALLBACK", "").strip() or None
 
     return [
-        InferenceTarget(role="primary", base_url=primary_url, model_name=primary_model),
-        InferenceTarget(role="fallback", base_url=fallback_url, model_name=fallback_model),
+        InferenceTarget(
+            role="primary",
+            base_url=primary_url,
+            model_name=primary_model,
+            endpoint_id=primary_endpoint_id,
+        ),
+        InferenceTarget(
+            role="fallback",
+            base_url=fallback_url,
+            model_name=fallback_model,
+            endpoint_id=fallback_endpoint_id,
+        ),
     ]
 
 
@@ -51,6 +72,29 @@ def _models_url(base_url: str) -> str:
 
 def _chat_completions_url(base_url: str) -> str:
     return f"{base_url.rstrip('/')}/chat/completions"
+
+
+def _target_failure_code(target: InferenceTarget, suffix: str) -> str:
+    prefix = (target.role or "target").strip().upper() or "TARGET"
+    return f"{prefix}_{suffix}"
+
+
+def _record_failure(target_check: dict[str, Any], code: str, message: str) -> None:
+    failure_codes = target_check.setdefault("failure_codes", [])
+    if code not in failure_codes:
+        failure_codes.append(code)
+    target_check.setdefault("errors", []).append(f"{code}:{message}")
+
+
+def _is_endpoint_configured(base_url: str) -> bool:
+    normalized = (base_url or "").strip()
+    if not normalized:
+        return False
+    if "<" in normalized or ">" in normalized:
+        return False
+    if "replace-with-" in normalized or "replace-me" in normalized:
+        return False
+    return True
 
 
 def run_inference_smoke(
@@ -75,10 +119,23 @@ def run_inference_smoke(
                 "role": target.role,
                 "base_url": target.base_url,
                 "model": target.model_name,
+                "endpoint_id": target.endpoint_id,
                 "models_endpoint_ok": False,
                 "completion_ok": False,
                 "errors": [],
+                "failure_codes": [],
+                "status": "failed",
             }
+            if not _is_endpoint_configured(target.base_url):
+                all_ok = False
+                _record_failure(
+                    target_check,
+                    _target_failure_code(target, ENDPOINT_UNCONFIGURED),
+                    "Base URL is empty or contains placeholder markers.",
+                )
+                checks.append(target_check)
+                continue
+
             try:
                 models_response = client.get(_models_url(target.base_url), headers=headers, timeout=timeout)
                 models_response.raise_for_status()
@@ -91,9 +148,20 @@ def run_inference_smoke(
                 target_check["available_models"] = available_models
                 target_check["models_endpoint_ok"] = True
                 target_check["model_list_contains_target"] = target.model_name in available_models
+                if not target_check["model_list_contains_target"]:
+                    all_ok = False
+                    _record_failure(
+                        target_check,
+                        _target_failure_code(target, MODEL_NOT_AVAILABLE),
+                        f"Target model '{target.model_name}' was not listed by /models.",
+                    )
             except Exception as exc:
                 all_ok = False
-                target_check["errors"].append(f"models_check_failed:{exc.__class__.__name__}:{exc}")
+                _record_failure(
+                    target_check,
+                    _target_failure_code(target, MODELS_UNREACHABLE),
+                    f"{exc.__class__.__name__}:{exc}",
+                )
 
             try:
                 completion_response = client.post(
@@ -118,13 +186,28 @@ def run_inference_smoke(
                 target_check["completion_preview"] = _extract_completion_preview(completion_payload)
             except Exception as exc:
                 all_ok = False
-                target_check["errors"].append(f"completion_check_failed:{exc.__class__.__name__}:{exc}")
+                _record_failure(
+                    target_check,
+                    _target_failure_code(target, COMPLETION_FAILED),
+                    f"{exc.__class__.__name__}:{exc}",
+                )
+
+            if not target_check["failure_codes"]:
+                target_check["status"] = "ok"
 
             checks.append(target_check)
 
+    failure_codes: list[str] = []
+    for check in checks:
+        for code in check.get("failure_codes", []):
+            if isinstance(code, str) and code and code not in failure_codes:
+                failure_codes.append(code)
+
     return {
         "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "result_code": DEFAULT_RESULT_CODE_OK if all_ok else failure_codes[0],
         "overall_success": all_ok,
+        "failure_codes": failure_codes,
         "checks": checks,
     }
 
@@ -155,10 +238,12 @@ def main() -> int:
     evidence = run_inference_smoke(api_key=api_key)
     _write_evidence(evidence, output_path)
     print(f"[inference-smoke] evidence_path={output_path}")
+    print(f"[inference-smoke] result_code={evidence['result_code']}")
     print(f"[inference-smoke] overall_success={evidence['overall_success']}")
+    if not evidence["overall_success"]:
+        print(f"[inference-smoke] failure_codes={','.join(evidence['failure_codes'])}")
     return 0 if bool(evidence.get("overall_success")) else 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

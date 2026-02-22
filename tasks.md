@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-22 (`T-110` completed; `T-111` is next)
+Last updated: 2026-02-22 (`T-111` completed; `T-112` is next)
 
 ## How to use this file
 
@@ -43,7 +43,7 @@ Last updated: 2026-02-22 (`T-110` completed; `T-111` is next)
 | T-108 | P0 | [DONE 2026-02-15] Add local model provisioning runbook for Hugging Face + dual vLLM servers | T-106, T-107 | Runbook includes HF auth, model pull/serve commands, GPU/VRAM guidance, cache paths, and troubleshooting for both models | Codex |
 | T-109 | P0 | [DONE 2026-02-15] Add inference smoke validation for `dots.ocr` and `chandra` endpoints | T-107, T-108 | Validation script/checklist confirms both endpoints reachable and one successful inference call per model with evidence output | Codex |
 | T-110 | P0 | [DONE 2026-02-22] Define RunPod cloud inference environment contract and secrets model | T-101, T-109 | `.env.example` and docs define RunPod-first primary/fallback endpoint vars, auth secrets handling, and dev-only local fallback guidance | Codex |
-| T-111 | P0 | Add RunPod dual-endpoint connectivity and smoke validation | T-110 | Inference smoke flow validates both RunPod endpoints (`dots.ocr`, `chandra`) with deterministic evidence output and clear failure codes | Unassigned |
+| T-111 | P0 | [DONE 2026-02-22] Add RunPod dual-endpoint connectivity and smoke validation | T-110 | Inference smoke flow validates both RunPod endpoints (`dots.ocr`, `chandra`) with deterministic evidence output and clear failure codes | Codex |
 | T-112 | P0 | Harden inference client policy for RunPod serverless behavior (fail-closed) | T-110, T-111, T-022 | Timeout/retry/backoff policy tuned for hosted latency and transient failures; inference outages follow retry/dead-letter path with no auto local-GPU failover | Unassigned |
 | T-113 | P0 | Update cloud deployment/inference runbook for RunPod operations | T-110, T-059 | Runbook documents RunPod endpoint lifecycle, scaling guidance, cost controls, secret rotation, and incident/rollback procedures | Unassigned |
 | T-114 | P0 | Add deploy gate for RunPod inference readiness | T-111, T-113 | Release checklist/automation blocks rollout unless RunPod endpoint health/model readiness checks pass | Unassigned |
