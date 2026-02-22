@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-22 (through T-075)
+Last updated: 2026-02-22 (cloud inference migration track added after T-075)
 
 ## How to use this file
 
@@ -8,7 +8,7 @@ Last updated: 2026-02-22 (through T-075)
 - `Depends On`: task IDs that must be completed first.
 - `Owner`: placeholder to assign later.
 - `Definition of Done`: objective completion criteria.
-- Sequencing note: after completing `T-098` to `T-101`, resume core MVP flow at `T-021`; complete `T-106` to `T-109` before `T-025`; before starting `T-025`, bring up both vLLM servers and pass `backend/scripts/inference-smoke.ps1`; execute `T-102` to `T-105` during deployment phase.
+- Sequencing note: `T-106` to `T-109` are completed historical local-inference provisioning tasks. Execute new RunPod cloud-inference track `T-110` to `T-115` immediately after `T-075` and before `T-076`/`T-077` and deployment tasks `T-102` to `T-105`.
 
 ## Task Backlog
 
@@ -42,6 +42,12 @@ Last updated: 2026-02-22 (through T-075)
 | T-107 | P0 | [DONE 2026-02-15] Implement backend support for fallback inference endpoint selection | T-106, T-022, T-024 | Runtime selects primary vs fallback base URL by model path; fallback client path covered by unit tests and structured failure handling | Codex |
 | T-108 | P0 | [DONE 2026-02-15] Add local model provisioning runbook for Hugging Face + dual vLLM servers | T-106, T-107 | Runbook includes HF auth, model pull/serve commands, GPU/VRAM guidance, cache paths, and troubleshooting for both models | Codex |
 | T-109 | P0 | [DONE 2026-02-15] Add inference smoke validation for `dots.ocr` and `chandra` endpoints | T-107, T-108 | Validation script/checklist confirms both endpoints reachable and one successful inference call per model with evidence output | Codex |
+| T-110 | P0 | Define RunPod cloud inference environment contract and secrets model | T-101, T-109 | `.env.example` and docs define RunPod-first primary/fallback endpoint vars, auth secrets handling, and dev-only local fallback guidance | Unassigned |
+| T-111 | P0 | Add RunPod dual-endpoint connectivity and smoke validation | T-110 | Inference smoke flow validates both RunPod endpoints (`dots.ocr`, `chandra`) with deterministic evidence output and clear failure codes | Unassigned |
+| T-112 | P0 | Harden inference client policy for RunPod serverless behavior (fail-closed) | T-110, T-111, T-022 | Timeout/retry/backoff policy tuned for hosted latency and transient failures; inference outages follow retry/dead-letter path with no auto local-GPU failover | Unassigned |
+| T-113 | P0 | Update cloud deployment/inference runbook for RunPod operations | T-110, T-059 | Runbook documents RunPod endpoint lifecycle, scaling guidance, cost controls, secret rotation, and incident/rollback procedures | Unassigned |
+| T-114 | P0 | Add deploy gate for RunPod inference readiness | T-111, T-113 | Release checklist/automation blocks rollout unless RunPod endpoint health/model readiness checks pass | Unassigned |
+| T-115 | P0 | Execute managed-environment smoke with RunPod-backed inference | T-114 | Hosted upload -> queue -> extraction -> review -> export smoke run passes against RunPod endpoints with evidence artifact and follow-up log | Unassigned |
 | T-025 | P0 | [DONE 2026-02-15] Implement routing rules from `dots.ocr` to fallback | T-023, T-024, T-109 | Routing triggers based on confidence/layout thresholds | Codex |
 | T-026 | P0 | [DONE 2026-02-15] Normalize raw OCR output into canonical schema | T-023, T-024, T-002 | Normalization handles required schema fields | Codex |
 | T-027 | P0 | [DONE 2026-02-15] Implement field-level confidence scoring map | T-026 | Confidence values emitted for all extractable fields | Codex |
@@ -93,8 +99,8 @@ Last updated: 2026-02-22 (through T-075)
 | T-073 | P2 | [DONE 2026-02-16] Implement custom extraction templates (schema builder + field mapping UI) | T-026, T-041 | Users can define and apply templates to recurring document formats | Codex |
 | T-074 | P2 | [DONE 2026-02-16] Implement template learning from user corrections (opt-in) | T-073, T-041 | Repeated corrections improve extraction suggestions for matching layouts | Codex |
 | T-075 | P2 | [DONE 2026-02-22] Implement advanced table extraction (multi-page stitching, merged cells) | T-024, T-026 | Complex table benchmark accuracy improves and passes regression gates | Codex |
-| T-076 | P2 | Add handwriting-focused extraction route and quality benchmark | T-024, T-046 | Handwriting test corpus tracked with explicit acceptance metrics | Unassigned |
-| T-077 | P2 | Expand multilingual support with automatic language detection | T-023, T-024 | Additional language pack support validated on multilingual dataset | Unassigned |
+| T-076 | P2 | Add handwriting-focused extraction route and quality benchmark | T-024, T-046, T-115 | Handwriting test corpus tracked with explicit acceptance metrics | Unassigned |
+| T-077 | P2 | Expand multilingual support with automatic language detection | T-023, T-024, T-115 | Additional language pack support validated on multilingual dataset | Unassigned |
 | T-078 | P2 | Implement immutable audit trail and exportable audit reports | T-056 | Every extraction edit/export event is queryable and exportable | Unassigned |
 | T-079 | P2 | Implement approval workflow (`Reviewer` -> `Approver`) | T-041, T-078 | Documents can require approval before final export | Unassigned |
 | T-080 | P3 | Add enterprise SSO/SAML and SCIM provisioning | T-050 | Enterprise identity flows and provisioning tests pass | Unassigned |
@@ -119,7 +125,7 @@ Last updated: 2026-02-22 (through T-075)
 | T-099 | P0 | [DONE 2026-02-15] Update environment/docs for Supabase-first development and migration workflow | T-098 | `.env.example`, `docs/local-setup.md`, and backend README document Supabase setup, secrets handling, and migration commands | Codex |
 | T-100 | P0 | [DONE 2026-02-15] Validate Alembic migrations end-to-end against Supabase Postgres | T-099 | `alembic upgrade head` and `alembic current` validated on Supabase; migration notes captured | Codex |
 | T-101 | P0 | [DONE 2026-02-15] Strengthen readiness checks to include DB and Redis dependency health | T-099, T-018 | `/ready` reports dependency status and fails when critical dependencies are unavailable; tests added | Codex |
-| T-102 | P0 | Configure production CORS and API base URL wiring for Vercel frontend -> hosted FastAPI | T-101, T-037 | Frontend can target hosted API URL; backend CORS allows configured Vercel origin(s) only | Unassigned |
+| T-102 | P0 | Configure production CORS and API base URL wiring for Vercel frontend -> hosted FastAPI | T-101, T-037, T-115 | Frontend can target hosted API URL; backend CORS allows configured Vercel origin(s) only | Unassigned |
 | T-103 | P0 | Define and document split deployment topology (Vercel frontend + hosted API/worker + managed Redis) | T-102 | Deployment runbook includes env vars, service responsibilities, start commands, and rollback notes | Unassigned |
 | T-104 | P0 | Add deploy gate for migration-before-release and hosted smoke validation | T-103 | Deployment checklist/automation enforces migrations before API rollout and validates upload -> queue -> completion smoke path | Unassigned |
 | T-105 | P0 | Run first managed-environment smoke test with Vercel frontend and Supabase-backed API | T-104 | End-to-end flow verified in hosted setup with evidence logged and follow-up issues captured | Unassigned |
@@ -141,6 +147,7 @@ Last updated: 2026-02-22 (through T-075)
 | M11 Advanced Personalization | T-094 to T-097 |
 | M12 Managed Deploy Foundation | T-098 to T-105 |
 | M13 Inference Provisioning | T-106 to T-109 |
+| M14 RunPod Cloud Inference Migration | T-110 to T-115 |
 
 ## MVP Exit Checklist
 

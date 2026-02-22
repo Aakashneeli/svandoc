@@ -1,6 +1,6 @@
 # PRD: svanDoc - Intelligent Document Extraction for SMEs (MVP v1)
 
-Last updated: 2026-02-14
+Last updated: 2026-02-22
 
 ## 1. Problem Statement
 
@@ -158,7 +158,7 @@ These can be revisited after core extraction workflow is validated.
                                  |
                                  | OCR calls
                                  v
-                         [vLLM Inference Service]
+                         [RunPod Serverless Inference Endpoints]
                           - dots.ocr (primary)
                           - Chandra (fallback)
 
@@ -166,7 +166,7 @@ These can be revisited after core extraction workflow is validated.
 [Object Storage] stores originals and artifacts
 ```
 
-### 9.2 Chosen stack (local-first)
+### 9.2 Chosen stack (cloud-inference first)
 
 | Layer | Choice | MVP Rationale |
 |---|---|---|
@@ -174,9 +174,9 @@ These can be revisited after core extraction workflow is validated.
 | Backend API | FastAPI + Python 3.11 | Async support and Python ML ecosystem |
 | Database | PostgreSQL 16 (local dev) | Stable relational model for jobs and extraction results |
 | Queue | Redis 7 + Celery | Reliable async orchestration for document processing |
-| Storage (dev) | Local filesystem (or MinIO optional) | Zero cloud dependency for local-first development |
+| Storage (dev) | Local filesystem (or MinIO optional) | Simple local artifact flow while API/worker run locally |
 | Storage (prod) | S3 or Cloudflare R2 | Durable artifact storage and scalable serving |
-| Inference | vLLM service | Efficient serving and model routing |
+| Inference | RunPod Serverless (vLLM-compatible endpoints) | Cloud GPU reliability without requiring personal GPU runtime |
 | OCR Models | dots.ocr primary, Chandra fallback | Cost/quality balance for invoice and receipt workload |
 | Auth | Supabase Auth or Clerk (decision during implementation) | Fast team auth with minimal custom work |
 
@@ -188,10 +188,11 @@ These can be revisited after core extraction workflow is validated.
 - table structure confidence is low,
 - or preprocessing detects complex multi-column layout.
 3. Persist both model outputs for debugging when fallback is used.
+4. If both hosted endpoints are unavailable, follow retry/dead-letter handling (fail-closed); do not auto-fallback to personal/local GPU in production flow.
 
-## 10. Local Environment Setup (No Docker Initially)
+## 10. Local Environment Setup (Cloud Inference Default)
 
-This project is built to run fully on a local machine first.
+This project is built for local API/worker/frontend development with RunPod-hosted inference endpoints as the default OCR runtime.
 
 ### Required software
 - Node.js 20 LTS
@@ -206,6 +207,7 @@ This project is built to run fully on a local machine first.
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
 - Worker: local Celery process
+- Inference: RunPod managed endpoint(s) over HTTPS (no local GPU service required by default)
 
 ### Environment variables (`.env.example`)
 
@@ -220,8 +222,11 @@ This project is built to run fully on a local machine first.
 | `S3_REGION` | Storage region |
 | `S3_ACCESS_KEY_ID` | Storage credentials |
 | `S3_SECRET_ACCESS_KEY` | Storage credentials |
-| `VLLM_BASE_URL` | OCR inference endpoint |
-| `VLLM_API_KEY` | Optional key if protected |
+| `VLLM_BASE_URL` | Primary OCR inference endpoint (RunPod `dots.ocr`) |
+| `VLLM_FALLBACK_BASE_URL` | Fallback OCR inference endpoint (RunPod `Chandra`) |
+| `VLLM_API_KEY` | RunPod API token or gateway key |
+| `RUNPOD_ENDPOINT_ID_PRIMARY` | Optional reference ID for operational/runbook checks |
+| `RUNPOD_ENDPOINT_ID_FALLBACK` | Optional reference ID for operational/runbook checks |
 | `OCR_DEFAULT_MODEL` | default model name |
 | `OCR_FALLBACK_MODEL` | fallback model name |
 | `JWT_SECRET` | Auth token secret if self-managed |
@@ -229,10 +234,12 @@ This project is built to run fully on a local machine first.
 
 ### Local run sequence
 1. Start PostgreSQL and Redis locally.
-2. Start backend API.
-3. Start Celery worker.
-4. Start frontend.
-5. Run smoke test: upload sample invoice -> review -> export JSON.
+2. Configure RunPod endpoint env vars (`VLLM_BASE_URL`, `VLLM_FALLBACK_BASE_URL`, `VLLM_API_KEY`).
+3. Run inference smoke check against both RunPod endpoints.
+4. Start backend API.
+5. Start Celery worker.
+6. Start frontend.
+7. Run smoke test: upload sample invoice -> review -> export JSON.
 
 ## 11. Data Model (Core Types)
 
@@ -308,6 +315,7 @@ This project is built to run fully on a local machine first.
 
 ### Gate A: Local foundation ready
 - Frontend, backend, Postgres, Redis, and worker all run locally.
+- RunPod primary/fallback inference endpoints are reachable from local environment.
 - Upload endpoint persists documents and creates jobs.
 
 ### Gate B: Extraction pipeline ready
@@ -349,7 +357,7 @@ This project is built to run fully on a local machine first.
 
 ## 16. Local-to-Production Translation Plan
 
-The local-first stack is intentionally designed to deploy without app rewrites.
+The stack is designed for config-only environment promotion with cloud inference as the default runtime and no app rewrites.
 
 ### What stays the same
 - FastAPI service code and routes.
@@ -361,12 +369,15 @@ The local-first stack is intentionally designed to deploy without app rewrites.
 - `DATABASE_URL`: local Postgres -> managed Postgres (Supabase, Neon, RDS).
 - `REDIS_URL`: local Redis -> managed Redis (Upstash, Redis Cloud, Elasticache).
 - `STORAGE_BACKEND`: local filesystem -> S3 or Cloudflare R2.
-- `VLLM_BASE_URL`: local/staging inference endpoint -> managed GPU runtime (Modal or RunPod).
+- `VLLM_BASE_URL`: RunPod primary endpoint URL per environment.
+- `VLLM_FALLBACK_BASE_URL`: RunPod fallback endpoint URL per environment.
+- `VLLM_API_KEY`: environment-specific RunPod credential.
+- Local inference remains optional development fallback only, and is not part of default production routing.
 
 ### Recommended rollout
-1. Stage 1: fully local stack.
+1. Stage 1: local app stack + RunPod inference endpoints.
 2. Stage 2: move DB/Redis/storage to managed cloud, keep app local for testing.
-3. Stage 3: deploy frontend/API/workers with staged traffic and monitoring.
+3. Stage 3: deploy frontend/API/workers with staged traffic and monitoring, keeping RunPod endpoint health gates in release flow.
 
 ## 17. Post-MVP Roadmap (v1.1 to v2.0)
 

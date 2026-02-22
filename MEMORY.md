@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-22 (completed T-075)
+Last updated: 2026-02-22 (RunPod cloud-inference migration track inserted; latest completed task remains T-075)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -16,7 +16,7 @@ In scope now:
 1. Invoice/receipt OCR + structured extraction.
 2. Human review and correction for low-confidence fields.
 3. Export to JSON/CSV/XLSX.
-4. Local-first development workflow.
+4. RunPod cloud-GPU inference as default, with optional local inference for development fallback only.
 
 Out of scope now:
 1. Billing/payments.
@@ -31,7 +31,7 @@ Out of scope now:
 - Queue: Redis + Celery integration implemented with enqueue + local eager-consumption tests.
 - DB: Supabase Postgres (PostgreSQL-compatible) via `DATABASE_URL`; SQLAlchemy + Alembic retained.
 - Storage: local first, S3/R2 later.
-- Inference: vLLM, primary `dots.ocr`, fallback `chandra`.
+- Inference: RunPod Serverless vLLM-compatible endpoints, primary `dots.ocr`, fallback `chandra` (fail-closed policy; no automatic local GPU fallback in outages).
 
 ## 4) Environment Notes
 
@@ -47,10 +47,11 @@ Important runtime notes for this machine/session:
 7. Use `uv` for Python dependency management (`uv pip install -r <requirements-file>`); set `UV_CACHE_DIR` under repo-local paths if default cache permissions fail.
 8. Supabase hostnames (`*.supabase.co`) get `sslmode=require` automatically if not provided in `DATABASE_URL`.
 9. Use Supabase pooler/IPv4-capable `DATABASE_URL` for this environment; direct DB host may fail due to IPv6-only resolution.
-10. Inference provisioning is now explicitly tracked before routing: complete `T-106` to `T-109` before `T-025`.
-11. Canonical model IDs are `rednote-hilab/dots.ocr` (primary) and `datalab-to/chandra` (fallback), with dual endpoints `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL`.
+10. `T-106` to `T-109` are completed historical local-inference provisioning tasks; RunPod migration tasks `T-110` to `T-115` now gate upcoming extraction/deployment work.
+11. Canonical model IDs remain `rednote-hilab/dots.ocr` (primary) and `datalab-to/chandra` (fallback), with dual endpoint contract `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL` now targeting RunPod by default.
 12. Outbound webhook delivery is controlled by `WEBHOOK_ENDPOINTS`, `WEBHOOK_SIGNING_SECRET`, and retry vars (`WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_TIMEOUT_SECONDS`, `WEBHOOK_RETRY_BACKOFF_SECONDS`).
 13. Current Linux sandbox runtime uses Python `3.12`; FastAPI `TestClient`-based unit tests can hang in this environment (observed in `anyio/from_thread` path), so endpoint/e2e test completion is currently blocked until runtime is stabilized (preferred: Python `3.11`).
+14. Inference outage policy is fail-closed for hosted GPU paths: retries + dead-letter handling apply; no automatic personal/local GPU failover in production flows.
 
 ## 5) Completed Task Batches
 
@@ -130,10 +131,16 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-076` Add handwriting-focused extraction route and quality benchmark. `NEXT`
-2. `T-077` Expand multilingual support with automatic language detection.
-3. `T-078` Implement immutable audit trail and exportable audit reports.
-4. Deployment tasks `T-102` to `T-105` remain deferred until after core MVP extraction flow progress.
+1. `T-110` Define RunPod cloud inference environment contract and secrets model. `NEXT`
+2. `T-111` Add RunPod dual-endpoint connectivity and smoke validation.
+3. `T-112` Harden inference client policy for RunPod serverless behavior (fail-closed).
+4. `T-113` Update cloud deployment/inference runbook for RunPod operations.
+5. `T-114` Add deploy gate for RunPod inference readiness.
+6. `T-115` Execute managed-environment smoke with RunPod-backed inference.
+7. `T-076` Add handwriting-focused extraction route and quality benchmark.
+8. `T-077` Expand multilingual support with automatic language detection.
+9. `T-078` Implement immutable audit trail and exportable audit reports.
+10. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
 
 Completed snapshot for `T-075` (2026-02-22):
 1. Implemented advanced table extraction helper module at `backend/src/svandoc_backend/table_extraction.py` with multi-page stitching and merged-cell expansion.
@@ -276,6 +283,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 68. `T-073` extraction-template checks passed on `2026-02-16`: `backend/tests/test_extraction_templates.py`, `backend/tests/test_core_schema.py`, and `backend/tests/test_extraction_endpoint.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0012` head; frontend `typecheck`, `lint`, and `test` passed with new review-page template create/apply UI.
 69. `T-074` template-learning checks passed on `2026-02-16`: `backend/tests/test_template_learning.py`, `backend/tests/test_extraction_templates.py`, and `backend/tests/test_core_schema.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0013` head and confirmed learning-rule table/indexes; frontend smoke tests remained green.
 70. `T-075` advanced-table checks passed on `2026-02-22`: `backend/tests/test_table_extraction.py`, `backend/tests/test_normalization.py`, `backend/tests/test_table_quality_benchmark.py`, `backend/tests/test_quality_eval.py`, `backend/tests/test_quality_gate.py`, and `backend/tests/test_queueing.py` passed (`26` tests via `unittest`); full `unittest discover` remains blocked in this Python `3.12` sandbox by a `TestClient`-path hang (timed out after starting `test_alerts`).
+71. RunPod migration validation target (planned): `T-111` must produce dual-endpoint smoke evidence for RunPod-hosted `dots.ocr`/`chandra`, and `T-112` must verify fail-closed inference outage handling (retry/dead-letter, no auto local fallback).
 
 ## 11) Update Protocol For Future Sessions
 
