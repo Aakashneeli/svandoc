@@ -112,6 +112,17 @@ Rotate `VLLM_API_KEY` at least quarterly or immediately after suspected exposure
 3. Re-run inference smoke and managed smoke path.
 4. Keep incident timeline, root cause, and mitigations in postmortem notes.
 
+## Deploy Gate Automation
+
+The release gate is enforced by:
+
+1. Local/ops command:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/runpod-readiness-gate.ps1`
+2. CI workflow:
+   - `.github/workflows/runpod-readiness-gate.yml`
+
+Both paths fail closed when RunPod readiness checks fail.
+
 ## Release Checklist (RunPod Ops)
 
 1. RunPod endpoint URLs and IDs are set and non-placeholder.
@@ -119,3 +130,4 @@ Rotate `VLLM_API_KEY` at least quarterly or immediately after suspected exposure
 3. Inference smoke passes for primary and fallback targets.
 4. Managed upload -> queue -> extraction -> review -> export smoke passes.
 5. Rollback endpoint config values are documented and ready.
+6. RunPod readiness gate command/workflow passes with evidence artifact.

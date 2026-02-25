@@ -74,3 +74,5 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
    - `PROCESSING_MAX_RETRIES`, `PROCESSING_RETRY_BACKOFF_SECONDS`
 10. RunPod ops reference:
    - `docs/runpod-operations-runbook.md`
+11. Deploy readiness gate command:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/runpod-readiness-gate.ps1`

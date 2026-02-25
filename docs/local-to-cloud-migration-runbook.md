@@ -73,19 +73,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging-dry-run.ps1 
    - Run `scripts/staging-dry-run.ps1`.
 3. Validate inference endpoints:
    - Run `backend/scripts/inference-smoke.ps1` and confirm `result_code=SMOKE_OK`.
-4. Boot stack with staging profile:
+4. Enforce readiness gate:
+   - Run `backend/scripts/runpod-readiness-gate.ps1` and require exit code `0`.
+5. Boot stack with staging profile:
    - `$env:APP_ENV="staging"`
    - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1`
-5. Execute smoke path:
+6. Execute smoke path:
    - Upload one invoice and one receipt.
    - Wait for job completion/review state.
    - Run JSON/CSV/XLSX export.
-6. Confirm observability:
+7. Confirm observability:
    - `/ready` returns ready.
    - `/metrics` and `/alerts` return expected envelopes.
-7. Capture evidence:
+8. Capture evidence:
    - Save dry-run JSON artifact.
    - Save inference smoke JSON artifact.
+   - Save readiness gate JSON artifact.
    - Save smoke request/response samples for release notes.
 
 ## Rollback
@@ -100,5 +103,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging-dry-run.ps1 
 Store these under `.local/` for each dry run:
 1. `.local/staging-dry-run.json`
 2. `.local-sandbox/inference-smoke.json` (or configured output path)
-3. Upload/review/export API smoke logs
-4. Any migration logs (when troubleshooting failures)
+3. `.local-sandbox/runpod-readiness-gate.json` (or configured output path)
+4. Upload/review/export API smoke logs
+5. Any migration logs (when troubleshooting failures)

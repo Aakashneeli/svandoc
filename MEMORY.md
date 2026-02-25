@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-25 (`T-113` completed; `T-114` is next)
+Last updated: 2026-02-25 (`T-114` completed; `T-115` is next)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -130,6 +130,7 @@ Completed:
 68. `T-111`: Inference smoke validation hardened for RunPod dual endpoints with deterministic evidence output (`result_code`, ordered `failure_codes`) and explicit primary/fallback failure codes for connectivity/model/readiness failures.
 69. `T-112`: Inference client fail-closed policy hardened for RunPod serverless behavior, including hosted timeout/retry/backoff defaults, endpoint preflight guardrails (unconfigured/localhost-in-managed rejection), retryability propagation into queue dead-letter paths, and regression coverage for retryable/non-retryable outage handling.
 70. `T-113`: RunPod operations runbook added with endpoint lifecycle, scaling, cost-control, secret-rotation, and incident/rollback procedures; migration/backend docs now reference RunPod operational gates and smoke-evidence requirements.
+71. `T-114`: RunPod deploy gate automation added (`svandoc_backend.deploy_gate`, `backend/scripts/runpod-readiness-gate.ps1`, `.github/workflows/runpod-readiness-gate.yml`) so rollout readiness fails closed when primary/fallback endpoint health/model checks do not pass.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -139,12 +140,18 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-114` Add deploy gate for RunPod inference readiness. `NEXT`
-2. `T-115` Execute managed-environment smoke with RunPod-backed inference.
-3. `T-076` Add handwriting-focused extraction route and quality benchmark.
-4. `T-077` Expand multilingual support with automatic language detection.
-5. `T-078` Implement immutable audit trail and exportable audit reports.
-6. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+1. `T-115` Execute managed-environment smoke with RunPod-backed inference. `NEXT`
+2. `T-076` Add handwriting-focused extraction route and quality benchmark.
+3. `T-077` Expand multilingual support with automatic language detection.
+4. `T-078` Implement immutable audit trail and exportable audit reports.
+5. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+
+Completed snapshot for `T-114` (2026-02-25):
+1. Added deploy-gate module `backend/src/svandoc_backend/deploy_gate.py` to evaluate RunPod smoke evidence and block rollout when required primary/fallback checks are missing or failed.
+2. Added gate CLI wrapper `backend/scripts/runpod-readiness-gate.ps1` for operator/release use.
+3. Added CI automation workflow `.github/workflows/runpod-readiness-gate.yml` (workflow-call + dispatch) that enforces readiness and publishes gate evidence artifacts.
+4. Updated runbooks to require the gate command/workflow before release (`docs/runpod-operations-runbook.md`, `docs/local-to-cloud-migration-runbook.md`, `backend/README.md`).
+5. Added unit coverage at `backend/tests/test_deploy_gate.py`.
 
 Completed snapshot for `T-113` (2026-02-25):
 1. Added RunPod-specific operations runbook at `docs/runpod-operations-runbook.md` covering endpoint lifecycle (provision/activate/update/decommission), scaling guidance, cost controls, secret rotation, and incident/rollback procedures.
@@ -320,7 +327,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 72. `T-111` smoke-hardening checks passed on `2026-02-22`: `backend/tests/test_inference_smoke.py`, `backend/tests/test_vllm_client.py`, and `backend/tests/test_queueing.py` passed (`23` tests via `unittest`); CLI smoke execution with placeholder RunPod URLs produced deterministic evidence (`result_code=PRIMARY_ENDPOINT_UNCONFIGURED`) at `backend/.local-sandbox/inference-smoke-t111.json`.
 73. `T-112` fail-closed policy checks passed on `2026-02-25`: `backend/tests/test_vllm_client.py` (`10` tests), `backend/tests/test_queueing.py` (`15` tests), and `backend/tests/test_inference_smoke.py` (`4` tests) passed via `.venv/bin/python -m unittest`; queueing suite executed with `PROCESSING_RETRY_BACKOFF_SECONDS=1` for faster deterministic retry scheduling in test runtime.
 74. `T-113` runbook checks passed on `2026-02-25`: `docs/runpod-operations-runbook.md` added and validated for required operations sections (`Endpoint Lifecycle`, `Scaling Guidance`, `Cost Controls`, `Secret Rotation`, `Incident and Rollback Procedures`); docs references verified in `docs/local-to-cloud-migration-runbook.md` and `backend/README.md`; `backend/tests/test_inference_smoke.py` passed (`4` tests via `.venv/bin/python -m unittest`).
-75. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
+75. `T-114` deploy-gate checks passed on `2026-02-25`: `backend/tests/test_deploy_gate.py` and `backend/tests/test_inference_smoke.py` passed (`8` tests via `.venv/bin/python -m unittest`); gate CLI smoke run with placeholder RunPod URLs failed closed as expected (`exit_code=1`) and wrote evidence at `backend/.local-sandbox/runpod-readiness-gate-t114.json`.
+76. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
 
 ## 11) Update Protocol For Future Sessions
 
