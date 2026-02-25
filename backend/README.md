@@ -28,6 +28,13 @@ powershell -ExecutionPolicy Bypass -File backend/scripts/test.ps1
 powershell -ExecutionPolicy Bypass -File backend/scripts/migrate.ps1
 ```
 
+`backend/scripts/test.ps1` defaults to module-level timeout execution to avoid
+indefinite hangs in unstable runtimes. Optional overrides:
+
+- `BACKEND_TEST_RUN_MODE=discover` to run raw `unittest discover`.
+- `BACKEND_TEST_MODULE_TIMEOUT_SECONDS=<seconds>` to tune per-module timeout.
+- `BACKEND_TEST_MODULE_FILTER=<fnmatch>` for targeted module runs.
+
 Optional formatter:
 
 ```powershell

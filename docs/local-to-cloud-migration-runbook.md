@@ -1,6 +1,6 @@
 # Local-to-Cloud Migration Runbook
 
-Last updated: 2026-02-22
+Last updated: 2026-02-15
 
 This runbook defines how to move svanDoc from local-only runtime to managed cloud dependencies without rewriting application code.
 
@@ -8,11 +8,11 @@ This runbook defines how to move svanDoc from local-only runtime to managed clou
 
 Move from:
 1. Local API + local worker + local frontend.
-2. Local DB/Redis/storage and mixed inference setup.
+2. Local DB/Redis/storage/inference.
 
 To:
 1. Same API/worker/frontend code.
-2. Managed DB/Redis/storage with RunPod-hosted dual inference endpoints configured by environment variables only.
+2. Managed DB/Redis/storage/inference configured by environment variables only.
 
 ## Preconditions
 
@@ -31,9 +31,6 @@ At minimum, staging overlay must set:
 5. `NEXT_PUBLIC_API_BASE_URL`
 6. `VLLM_BASE_URL`
 7. `VLLM_FALLBACK_BASE_URL`
-8. `VLLM_API_KEY`
-9. `RUNPOD_ENDPOINT_ID_PRIMARY`
-10. `RUNPOD_ENDPOINT_ID_FALLBACK`
 
 When `STORAGE_BACKEND=s3`, also set:
 1. `S3_BUCKET`
@@ -67,8 +64,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging-dry-run.ps1 
 
 1. Prepare profile:
    - Copy `.env.staging.example` to `.env.staging`.
-   - Fill managed `DATABASE_URL`, `REDIS_URL`, storage, RunPod endpoint URLs/IDs, and `VLLM_API_KEY`.
-   - Never commit `.env.staging` with real secrets.
+   - Fill managed `DATABASE_URL`, `REDIS_URL`, storage, and inference endpoints.
 2. Validate config and migration:
    - Run `scripts/staging-dry-run.ps1`.
 3. Boot stack with staging profile:
@@ -98,3 +94,4 @@ Store these under `.local/` for each dry run:
 1. `.local/staging-dry-run.json`
 2. Upload/review/export API smoke logs
 3. Any migration logs (when troubleshooting failures)
+

@@ -2,6 +2,8 @@
 
 This file captures project-specific context so future agent sessions stay aligned.
 
+we work inside wsl .
+
 Primary fast-context file:
 1. Read `MEMORY.md` first in every new session.
 2. Use `tasks.md` as the execution order source of truth.
@@ -14,20 +16,6 @@ Primary fast-context file:
 - Current phase: MVP definition and local-first implementation
 - Primary problem: reduce manual invoice/receipt data entry time and error rate
 
-## MVP Focus (Do Not Drift)
-
-In scope:
-1. Invoice and receipt extraction
-2. Upload -> process -> review -> export workflow
-3. Exports: JSON, CSV, XLSX
-4. Human-in-the-loop review for low-confidence fields
-5. Local-first development environment
-
-Out of scope for MVP:
-1. Payments and subscriptions
-2. ERP and broad accounting integrations
-3. Healthcare-specific document workflows
-4. Full public API productization
 
 ## Product Rules
 
@@ -41,7 +29,7 @@ Out of scope for MVP:
 - Frontend: Next.js + TypeScript + Tailwind CSS
 - Backend: FastAPI (Python 3.11)
 - Queue: Redis + Celery
-- Database: PostgreSQL
+- Database: Supabase
 - Storage (dev): local filesystem (or MinIO optional)
 - Storage (prod): S3 or Cloudflare R2
 - OCR inference: vLLM serving `dots.ocr` (primary) and `Chandra` (fallback)

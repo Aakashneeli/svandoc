@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-22 (`T-111` completed; `T-112` is next)
+Last updated: 2026-02-25 (`T-111` completed; `T-112` is next; housekeeping fixes applied)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -41,7 +41,7 @@ Important runtime notes for this machine/session:
 1. Use `npm.cmd` (not `npm`) due PowerShell script policy behavior.
 2. Frontend install/check commands should set local npm cache dirs if permission issues appear.
 3. Create and use repo venv `myvenv` before backend package installs.
-4. Backend scripts auto-prefer `myvenv\Scripts\python.exe` when present.
+4. Backend scripts auto-prefer `myvenv\Scripts\python.exe` when present on Windows; non-Windows runtime falls back to `python`.
 5. Readiness now checks both DB and Redis; `/ready` returns `503 DEPENDENCY_UNAVAILABLE` on dependency failures.
 6. `python-multipart` is required for upload endpoint form parsing and is now pinned in backend dependencies.
 7. Use `uv` for Python dependency management (`uv pip install -r <requirements-file>`); set `UV_CACHE_DIR` under repo-local paths if default cache permissions fail.
@@ -50,10 +50,11 @@ Important runtime notes for this machine/session:
 10. `T-106` to `T-109` are completed historical local-inference provisioning tasks; RunPod migration tasks `T-110` to `T-115` now gate upcoming extraction/deployment work.
 11. Canonical model IDs remain `rednote-hilab/dots.ocr` (primary) and `datalab-to/chandra` (fallback), with dual endpoint contract `VLLM_BASE_URL` and `VLLM_FALLBACK_BASE_URL` now targeting RunPod by default.
 12. Outbound webhook delivery is controlled by `WEBHOOK_ENDPOINTS`, `WEBHOOK_SIGNING_SECRET`, and retry vars (`WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_TIMEOUT_SECONDS`, `WEBHOOK_RETRY_BACKOFF_SECONDS`).
-13. Current Linux sandbox runtime uses Python `3.12`; FastAPI `TestClient`-based unit tests can hang in this environment (observed in `anyio/from_thread` path), so endpoint/e2e test completion is currently blocked until runtime is stabilized (preferred: Python `3.11`).
+13. Current Linux sandbox runtime uses Python `3.12`; FastAPI `TestClient`-based unit tests can hang in this environment (observed in `anyio/from_thread` path). `backend/scripts/test.ps1` now defaults to a per-module timeout runner to prevent indefinite hangs; use Python `3.11` for the most stable full-suite execution.
 14. Inference outage policy is fail-closed for hosted GPU paths: retries + dead-letter handling apply; no automatic personal/local GPU failover in production flows.
 15. RunPod-first env contract now includes `RUNPOD_ENDPOINT_ID_PRIMARY` / `RUNPOD_ENDPOINT_ID_FALLBACK` and `VLLM_API_KEY` secret-handling guidance; localhost vLLM URLs are documented as development-only fallback overrides.
 16. Inference smoke evidence now emits deterministic `result_code` and `failure_codes`, with explicit per-target failure codes for endpoint configuration, `/models` reachability/model-availability, and completion checks.
+17. If Git shows mass modified files on WSL/mounted filesystems due executable-bit flips, set repository config `git config core.filemode false` to suppress file-mode noise and keep status focused on real content changes.
 
 ## 5) Completed Task Batches
 
@@ -300,10 +301,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 67. `T-072` SDK quickstart checks passed on `2026-02-16`: `backend/tests/test_sdk_quickstarts.py` and `backend/tests/test_public_api.py` passed (`6` tests via `unittest`), including execution of both `sdk/python/examples/quickstart.py` and `sdk/typescript/examples/quickstart.mjs` against a mock public API host.
 68. `T-073` extraction-template checks passed on `2026-02-16`: `backend/tests/test_extraction_templates.py`, `backend/tests/test_core_schema.py`, and `backend/tests/test_extraction_endpoint.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0012` head; frontend `typecheck`, `lint`, and `test` passed with new review-page template create/apply UI.
 69. `T-074` template-learning checks passed on `2026-02-16`: `backend/tests/test_template_learning.py`, `backend/tests/test_extraction_templates.py`, and `backend/tests/test_core_schema.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0013` head and confirmed learning-rule table/indexes; frontend smoke tests remained green.
-70. `T-075` advanced-table checks passed on `2026-02-22`: `backend/tests/test_table_extraction.py`, `backend/tests/test_normalization.py`, `backend/tests/test_table_quality_benchmark.py`, `backend/tests/test_quality_eval.py`, `backend/tests/test_quality_gate.py`, and `backend/tests/test_queueing.py` passed (`26` tests via `unittest`); full `unittest discover` remains blocked in this Python `3.12` sandbox by a `TestClient`-path hang (timed out after starting `test_alerts`).
+70. `T-075` advanced-table checks passed on `2026-02-22`: `backend/tests/test_table_extraction.py`, `backend/tests/test_normalization.py`, `backend/tests/test_table_quality_benchmark.py`, `backend/tests/test_quality_eval.py`, `backend/tests/test_quality_gate.py`, and `backend/tests/test_queueing.py` passed (`26` tests via `unittest`); raw `unittest discover` in this Python `3.12` sandbox can still hang on `TestClient` paths, so backend test script now defaults to module-level timeout execution.
 71. RunPod migration validation target (planned): `T-112` must verify fail-closed inference outage handling (retry/dead-letter, no auto local fallback) under hosted RunPod endpoint behavior.
 72. `T-110` contract alignment checks passed on `2026-02-22`: `.env.example`, `.env.staging.example`, `docs/local-setup.md`, `docs/local-to-cloud-migration-runbook.md`, `docs/inference-model-setup.md`, and `backend/README.md` were updated for RunPod-first endpoint/auth guidance; targeted backend regression tests passed (`backend/tests/test_vllm_client.py`, `backend/tests/test_inference_smoke.py`, `backend/tests/test_queueing.py`; `21` tests via `unittest`).
 73. `T-111` smoke-hardening checks passed on `2026-02-22`: `backend/tests/test_inference_smoke.py`, `backend/tests/test_vllm_client.py`, and `backend/tests/test_queueing.py` passed (`23` tests via `unittest`); CLI smoke execution with placeholder RunPod URLs produced deterministic evidence (`result_code=PRIMARY_ENDPOINT_UNCONFIGURED`) at `backend/.local-sandbox/inference-smoke-t111.json`.
+74. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
 
 ## 11) Update Protocol For Future Sessions
 
