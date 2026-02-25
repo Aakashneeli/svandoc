@@ -72,3 +72,5 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
    - `VLLM_TIMEOUT_SECONDS`, `VLLM_MAX_RETRIES`, `VLLM_RETRY_BACKOFF_SECONDS`, `VLLM_RETRY_MAX_BACKOFF_SECONDS`
 9. Queue fail-closed retry/dead-letter policy envs:
    - `PROCESSING_MAX_RETRIES`, `PROCESSING_RETRY_BACKOFF_SECONDS`
+10. RunPod ops reference:
+   - `docs/runpod-operations-runbook.md`

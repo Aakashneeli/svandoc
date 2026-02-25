@@ -1,6 +1,6 @@
 # svanDoc MVP Tasks
 
-Last updated: 2026-02-25 (`T-112` completed; `T-113` is next)
+Last updated: 2026-02-25 (`T-113` completed; `T-114` is next)
 
 ## How to use this file
 
@@ -45,7 +45,7 @@ Last updated: 2026-02-25 (`T-112` completed; `T-113` is next)
 | T-110 | P0 | [DONE 2026-02-22] Define RunPod cloud inference environment contract and secrets model | T-101, T-109 | `.env.example` and docs define RunPod-first primary/fallback endpoint vars, auth secrets handling, and dev-only local fallback guidance | Codex |
 | T-111 | P0 | [DONE 2026-02-22] Add RunPod dual-endpoint connectivity and smoke validation | T-110 | Inference smoke flow validates both RunPod endpoints (`dots.ocr`, `chandra`) with deterministic evidence output and clear failure codes | Codex |
 | T-112 | P0 | [DONE 2026-02-25] Harden inference client policy for RunPod serverless behavior (fail-closed) | T-110, T-111, T-022 | Timeout/retry/backoff policy tuned for hosted latency and transient failures; inference outages follow retry/dead-letter path with no auto local-GPU failover | Codex |
-| T-113 | P0 | Update cloud deployment/inference runbook for RunPod operations | T-110, T-059 | Runbook documents RunPod endpoint lifecycle, scaling guidance, cost controls, secret rotation, and incident/rollback procedures | Unassigned |
+| T-113 | P0 | [DONE 2026-02-25] Update cloud deployment/inference runbook for RunPod operations | T-110, T-059 | Runbook documents RunPod endpoint lifecycle, scaling guidance, cost controls, secret rotation, and incident/rollback procedures | Codex |
 | T-114 | P0 | Add deploy gate for RunPod inference readiness | T-111, T-113 | Release checklist/automation blocks rollout unless RunPod endpoint health/model readiness checks pass | Unassigned |
 | T-115 | P0 | Execute managed-environment smoke with RunPod-backed inference | T-114 | Hosted upload -> queue -> extraction -> review -> export smoke run passes against RunPod endpoints with evidence artifact and follow-up log | Unassigned |
 | T-025 | P0 | [DONE 2026-02-15] Implement routing rules from `dots.ocr` to fallback | T-023, T-024, T-109 | Routing triggers based on confidence/layout thresholds | Codex |

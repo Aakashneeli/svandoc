@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-25 (`T-112` completed; `T-113` is next)
+Last updated: 2026-02-25 (`T-113` completed; `T-114` is next)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -129,6 +129,7 @@ Completed:
 67. `T-110`: RunPod-first inference env/secrets contract aligned across `.env.example`, `.env.staging.example`, and setup/migration docs, including explicit `VLLM_API_KEY` handling and development-only local vLLM fallback guidance.
 68. `T-111`: Inference smoke validation hardened for RunPod dual endpoints with deterministic evidence output (`result_code`, ordered `failure_codes`) and explicit primary/fallback failure codes for connectivity/model/readiness failures.
 69. `T-112`: Inference client fail-closed policy hardened for RunPod serverless behavior, including hosted timeout/retry/backoff defaults, endpoint preflight guardrails (unconfigured/localhost-in-managed rejection), retryability propagation into queue dead-letter paths, and regression coverage for retryable/non-retryable outage handling.
+70. `T-113`: RunPod operations runbook added with endpoint lifecycle, scaling, cost-control, secret-rotation, and incident/rollback procedures; migration/backend docs now reference RunPod operational gates and smoke-evidence requirements.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -138,13 +139,18 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-113` Update cloud deployment/inference runbook for RunPod operations. `NEXT`
-2. `T-114` Add deploy gate for RunPod inference readiness.
-3. `T-115` Execute managed-environment smoke with RunPod-backed inference.
-4. `T-076` Add handwriting-focused extraction route and quality benchmark.
-5. `T-077` Expand multilingual support with automatic language detection.
-6. `T-078` Implement immutable audit trail and exportable audit reports.
-7. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+1. `T-114` Add deploy gate for RunPod inference readiness. `NEXT`
+2. `T-115` Execute managed-environment smoke with RunPod-backed inference.
+3. `T-076` Add handwriting-focused extraction route and quality benchmark.
+4. `T-077` Expand multilingual support with automatic language detection.
+5. `T-078` Implement immutable audit trail and exportable audit reports.
+6. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+
+Completed snapshot for `T-113` (2026-02-25):
+1. Added RunPod-specific operations runbook at `docs/runpod-operations-runbook.md` covering endpoint lifecycle (provision/activate/update/decommission), scaling guidance, cost controls, secret rotation, and incident/rollback procedures.
+2. Updated `docs/local-to-cloud-migration-runbook.md` to include RunPod ops dependency, required RunPod auth/endpoint variables, inference-smoke preflight, and evidence artifact requirements.
+3. Updated backend inference notes (`backend/README.md`) to point engineers at the RunPod operations runbook.
+4. Validated runbook DoD coverage using explicit section and keyword checks plus inference-smoke unit regression.
 
 Completed snapshot for `T-112` (2026-02-25):
 1. Tuned `svandoc_backend.vllm_client` for hosted RunPod latency/failure patterns with higher default timeout/retries and capped exponential backoff (`VLLM_TIMEOUT_SECONDS`, `VLLM_MAX_RETRIES`, `VLLM_RETRY_BACKOFF_SECONDS`, `VLLM_RETRY_MAX_BACKOFF_SECONDS`).
@@ -313,7 +319,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 71. `T-110` contract alignment checks passed on `2026-02-22`: `.env.example`, `.env.staging.example`, `docs/local-setup.md`, `docs/local-to-cloud-migration-runbook.md`, `docs/inference-model-setup.md`, and `backend/README.md` were updated for RunPod-first endpoint/auth guidance; targeted backend regression tests passed (`backend/tests/test_vllm_client.py`, `backend/tests/test_inference_smoke.py`, `backend/tests/test_queueing.py`; `21` tests via `unittest`).
 72. `T-111` smoke-hardening checks passed on `2026-02-22`: `backend/tests/test_inference_smoke.py`, `backend/tests/test_vllm_client.py`, and `backend/tests/test_queueing.py` passed (`23` tests via `unittest`); CLI smoke execution with placeholder RunPod URLs produced deterministic evidence (`result_code=PRIMARY_ENDPOINT_UNCONFIGURED`) at `backend/.local-sandbox/inference-smoke-t111.json`.
 73. `T-112` fail-closed policy checks passed on `2026-02-25`: `backend/tests/test_vllm_client.py` (`10` tests), `backend/tests/test_queueing.py` (`15` tests), and `backend/tests/test_inference_smoke.py` (`4` tests) passed via `.venv/bin/python -m unittest`; queueing suite executed with `PROCESSING_RETRY_BACKOFF_SECONDS=1` for faster deterministic retry scheduling in test runtime.
-74. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
+74. `T-113` runbook checks passed on `2026-02-25`: `docs/runpod-operations-runbook.md` added and validated for required operations sections (`Endpoint Lifecycle`, `Scaling Guidance`, `Cost Controls`, `Secret Rotation`, `Incident and Rollback Procedures`); docs references verified in `docs/local-to-cloud-migration-runbook.md` and `backend/README.md`; `backend/tests/test_inference_smoke.py` passed (`4` tests via `.venv/bin/python -m unittest`).
+75. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
 
 ## 11) Update Protocol For Future Sessions
 

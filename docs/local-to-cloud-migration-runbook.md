@@ -1,6 +1,6 @@
 # Local-to-Cloud Migration Runbook
 
-Last updated: 2026-02-15
+Last updated: 2026-02-25
 
 This runbook defines how to move svanDoc from local-only runtime to managed cloud dependencies without rewriting application code.
 
@@ -18,8 +18,9 @@ To:
 
 1. `T-057` complete (profile-aware environment overlay).
 2. `T-058` complete (storage backend switching already validated).
-3. `.env` exists for local defaults.
-4. `.env.staging` exists (copied from `.env.staging.example`) with managed endpoints and secrets.
+3. RunPod endpoint operations defined in `docs/runpod-operations-runbook.md`.
+4. `.env` exists for local defaults.
+5. `.env.staging` exists (copied from `.env.staging.example`) with managed endpoints and secrets.
 
 ## Required Staging Variables
 
@@ -31,6 +32,9 @@ At minimum, staging overlay must set:
 5. `NEXT_PUBLIC_API_BASE_URL`
 6. `VLLM_BASE_URL`
 7. `VLLM_FALLBACK_BASE_URL`
+8. `VLLM_API_KEY`
+9. `RUNPOD_ENDPOINT_ID_PRIMARY`
+10. `RUNPOD_ENDPOINT_ID_FALLBACK`
 
 When `STORAGE_BACKEND=s3`, also set:
 1. `S3_BUCKET`
@@ -67,18 +71,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging-dry-run.ps1 
    - Fill managed `DATABASE_URL`, `REDIS_URL`, storage, and inference endpoints.
 2. Validate config and migration:
    - Run `scripts/staging-dry-run.ps1`.
-3. Boot stack with staging profile:
+3. Validate inference endpoints:
+   - Run `backend/scripts/inference-smoke.ps1` and confirm `result_code=SMOKE_OK`.
+4. Boot stack with staging profile:
    - `$env:APP_ENV="staging"`
    - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1`
-4. Execute smoke path:
+5. Execute smoke path:
    - Upload one invoice and one receipt.
    - Wait for job completion/review state.
    - Run JSON/CSV/XLSX export.
-5. Confirm observability:
+6. Confirm observability:
    - `/ready` returns ready.
    - `/metrics` and `/alerts` return expected envelopes.
-6. Capture evidence:
+7. Capture evidence:
    - Save dry-run JSON artifact.
+   - Save inference smoke JSON artifact.
    - Save smoke request/response samples for release notes.
 
 ## Rollback
@@ -92,6 +99,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/staging-dry-run.ps1 
 
 Store these under `.local/` for each dry run:
 1. `.local/staging-dry-run.json`
-2. Upload/review/export API smoke logs
-3. Any migration logs (when troubleshooting failures)
-
+2. `.local-sandbox/inference-smoke.json` (or configured output path)
+3. Upload/review/export API smoke logs
+4. Any migration logs (when troubleshooting failures)
