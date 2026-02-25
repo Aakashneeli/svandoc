@@ -15,6 +15,7 @@ from svandoc_backend.models.extraction_result import ExtractionResult
 from svandoc_backend.models.job import Job
 from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.queueing import JOB_SESSION_FACTORY, celery_app, enqueue_processing_job, process_document_job
+from svandoc_backend.vllm_client import VLLMClientError
 import svandoc_backend.queueing as queueing
 
 
@@ -34,7 +35,7 @@ class FakeRetryContext:
 
 class QueueingIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
-        workspace_tmp = Path("tests_tmp")
+        workspace_tmp = Path(os.getenv("SVANDOC_TEST_TMP_ROOT", "/tmp/svandoc-tests"))
         workspace_tmp.mkdir(parents=True, exist_ok=True)
         self.test_dir = workspace_tmp / f"queueing-{uuid4().hex}"
         self.test_dir.mkdir(parents=True, exist_ok=False)
@@ -465,6 +466,78 @@ class QueueingIntegrationTests(unittest.TestCase):
         self.assertEqual(job.status, "failed")
         self.assertEqual(job.error_code, "DEAD_LETTER")
         self.assertIn("temporary inference timeout", str(job.error_message))
+
+    def test_process_document_job_schedules_retry_for_retryable_vllm_error(self) -> None:
+        job_id = "job-retryable-vllm-error"
+        os.environ["PROCESSING_MAX_RETRIES"] = "2"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+        retry_context = FakeRetryContext(retries=0)
+
+        with self.assertRaises(RetryScheduledError):
+            with ExitStack() as stack:
+                stack.enter_context(
+                    patch(
+                        "svandoc_backend.queueing.build_vllm_client_for_model",
+                        return_value=object(),
+                    )
+                )
+                dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+                dots_extract.side_effect = VLLMClientError(
+                    "runpod timeout",
+                    retryable=True,
+                )
+                process_document_job(job_id, request_id="req-retryable-vllm", retry_context=retry_context)
+
+        self.assertEqual(len(retry_context.retry_calls), 1)
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "queued")
+        self.assertIsNone(job.error_code)
+        self.assertIsNone(job.error_message)
+
+    def test_process_document_job_marks_processing_error_for_non_retryable_vllm_error(self) -> None:
+        job_id = "job-non-retryable-vllm-error"
+        os.environ["PROCESSING_MAX_RETRIES"] = "2"
+        os.environ["OCR_DEFAULT_MODEL"] = "rednote-hilab/dots.ocr"
+        os.environ["OCR_FALLBACK_MODEL"] = "datalab-to/chandra"
+        self._insert_document_and_job(job_id)
+        retry_context = FakeRetryContext(retries=0)
+
+        with self.assertRaises(VLLMClientError):
+            with ExitStack() as stack:
+                stack.enter_context(
+                    patch(
+                        "svandoc_backend.queueing.build_vllm_client_for_model",
+                        return_value=object(),
+                    )
+                )
+                dots_extract = stack.enter_context(patch("svandoc_backend.queueing.DotsOCRAdapter.extract"))
+                dots_extract.side_effect = VLLMClientError(
+                    "endpoint unconfigured",
+                    retryable=False,
+                    error_code="ENDPOINT_UNCONFIGURED",
+                )
+                process_document_job(job_id, request_id="req-non-retryable-vllm", retry_context=retry_context)
+
+        self.assertEqual(len(retry_context.retry_calls), 0)
+        session = self.SessionTesting()
+        try:
+            job = session.get(Job, job_id)
+        finally:
+            session.close()
+
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.status, "failed")
+        self.assertEqual(job.error_code, "PROCESSING_ERROR")
 
     def test_process_document_job_emits_completed_webhook_event(self) -> None:
         job_id = "job-webhook-completed"

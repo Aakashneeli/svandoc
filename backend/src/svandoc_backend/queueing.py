@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+import httpx
 from celery import Celery
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -23,7 +24,7 @@ from svandoc_backend.normalization import normalize_ocr_output
 from svandoc_backend.ocr_types import OCRExtractionResult
 from svandoc_backend.preprocessing import preprocess_image_content
 from svandoc_backend.validation import validate_normalized_payload
-from svandoc_backend.vllm_client import build_vllm_client_for_model, is_fallback_model
+from svandoc_backend.vllm_client import VLLMClientError, build_vllm_client_for_model, is_fallback_model
 from svandoc_backend.webhooks import deliver_webhook_event
 from svandoc_backend.worker_logging import emit_worker_log
 
@@ -99,9 +100,29 @@ def _retry_delay_seconds(attempt_count: int) -> int:
     return min(base_seconds * (2**exponent), 300)
 
 
+def _iter_exception_chain(exc: Exception) -> list[Exception]:
+    exceptions: list[Exception] = []
+    seen: set[int] = set()
+    current: Exception | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        exceptions.append(current)
+        current = current.__cause__ if isinstance(current.__cause__, Exception) else None
+    return exceptions
+
+
 def _is_retryable_processing_error(exc: Exception) -> bool:
-    if isinstance(exc, (TimeoutError, ConnectionError)):
-        return True
+    for current in _iter_exception_chain(exc):
+        if isinstance(current, VLLMClientError):
+            if current.retryable:
+                return True
+            continue
+        if isinstance(current, (TimeoutError, ConnectionError, httpx.TimeoutException, httpx.TransportError)):
+            return True
+        if isinstance(current, httpx.HTTPStatusError):
+            status_code = current.response.status_code
+            if status_code in {408, 409, 425, 429} or status_code >= 500:
+                return True
 
     message = str(exc).lower()
     retryable_markers = (
@@ -110,8 +131,8 @@ def _is_retryable_processing_error(exc: Exception) -> bool:
         "connection reset",
         "connection refused",
         "retryable",
-        "503",
         "429",
+        "503",
     )
     return any(marker in message for marker in retryable_markers)
 

@@ -33,6 +33,16 @@ def _response(status_code: int, payload: dict[str, Any]) -> httpx.Response:
 
 
 class VLLMClientTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.previous_app_env = os.environ.get("APP_ENV")
+        os.environ["APP_ENV"] = "local"
+
+    def tearDown(self) -> None:
+        if self.previous_app_env is None:
+            os.environ.pop("APP_ENV", None)
+        else:
+            os.environ["APP_ENV"] = self.previous_app_env
+
     def test_complete_success_single_attempt(self) -> None:
         events: list[tuple[str, dict[str, Any]]] = []
         stub = _StubHTTPClient(
@@ -114,6 +124,73 @@ class VLLMClientTests(unittest.TestCase):
         self.assertEqual(sleeps, [])
         self.assertEqual(len(stub.calls), 1)
 
+    def test_complete_raises_retryable_error_after_retry_exhaustion(self) -> None:
+        timeout_error = httpx.TimeoutException("timeout")
+        stub = _StubHTTPClient([timeout_error])
+        client = VLLMClient(
+            base_url="http://localhost:11434/v1",
+            max_retries=0,
+            retry_backoff_seconds=0.1,
+            http_client=stub,
+            sleep_fn=lambda _: None,
+        )
+
+        with self.assertRaises(VLLMClientError) as context:
+            client.complete(model="dots.ocr", prompt="extract")
+
+        self.assertTrue(context.exception.retryable)
+
+    def test_complete_rejects_unconfigured_endpoint(self) -> None:
+        client = VLLMClient(
+            base_url="https://api.runpod.ai/v2/<primary-endpoint-id>/openai/v1",
+            http_client=_StubHTTPClient([]),
+            sleep_fn=lambda _: None,
+        )
+
+        with self.assertRaises(VLLMClientError) as context:
+            client.complete(model="dots.ocr", prompt="extract")
+
+        self.assertFalse(context.exception.retryable)
+        self.assertEqual(context.exception.error_code, "ENDPOINT_UNCONFIGURED")
+
+    def test_complete_rejects_localhost_endpoint_in_managed_env(self) -> None:
+        with patch.dict(os.environ, {"APP_ENV": "staging"}, clear=False):
+            client = VLLMClient(
+                base_url="http://localhost:11434/v1",
+                http_client=_StubHTTPClient([]),
+                sleep_fn=lambda _: None,
+            )
+            with self.assertRaises(VLLMClientError) as context:
+                client.complete(model="dots.ocr", prompt="extract")
+
+        self.assertFalse(context.exception.retryable)
+        self.assertEqual(context.exception.error_code, "LOCAL_ENDPOINT_DISALLOWED")
+
+    def test_complete_applies_retry_backoff_cap(self) -> None:
+        sleeps: list[float] = []
+        stub = _StubHTTPClient(
+            [
+                _response(503, {"error": "busy"}),
+                _response(503, {"error": "busy"}),
+                _response(503, {"error": "busy"}),
+                _response(200, {"choices": [{"message": {"content": "ok"}}]}),
+            ]
+        )
+        client = VLLMClient(
+            base_url="http://localhost:11434/v1",
+            max_retries=3,
+            retry_backoff_seconds=10.0,
+            retry_max_backoff_seconds=12.0,
+            http_client=stub,
+            sleep_fn=lambda seconds: sleeps.append(seconds),
+        )
+
+        result = client.complete(model="dots.ocr", prompt="extract")
+
+        self.assertEqual(result.text, "ok")
+        self.assertEqual(result.attempts, 4)
+        self.assertEqual(sleeps, [10.0, 12.0, 12.0])
+
     def test_base_url_for_model_uses_fallback_endpoint(self) -> None:
         env = {
             "VLLM_BASE_URL": "http://localhost:11434/v1",
@@ -141,4 +218,3 @@ class VLLMClientTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

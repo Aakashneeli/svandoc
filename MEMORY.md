@@ -1,6 +1,6 @@
 # svanDoc Memory File
 
-Last updated: 2026-02-25 (`T-111` completed; `T-112` is next; housekeeping fixes applied)
+Last updated: 2026-02-25 (`T-112` completed; `T-113` is next)
 Purpose: fast context restore in new sessions without full repo re-scan.
 
 ## 1) Project Intent
@@ -55,6 +55,7 @@ Important runtime notes for this machine/session:
 15. RunPod-first env contract now includes `RUNPOD_ENDPOINT_ID_PRIMARY` / `RUNPOD_ENDPOINT_ID_FALLBACK` and `VLLM_API_KEY` secret-handling guidance; localhost vLLM URLs are documented as development-only fallback overrides.
 16. Inference smoke evidence now emits deterministic `result_code` and `failure_codes`, with explicit per-target failure codes for endpoint configuration, `/models` reachability/model-availability, and completion checks.
 17. If Git shows mass modified files on WSL/mounted filesystems due executable-bit flips, set repository config `git config core.filemode false` to suppress file-mode noise and keep status focused on real content changes.
+18. Queueing integration tests now default their SQLite temp root to `/tmp/svandoc-tests` (`SVANDOC_TEST_TMP_ROOT`) to avoid intermittent disk I/O errors on mounted WSL paths.
 
 ## 5) Completed Task Batches
 
@@ -127,6 +128,7 @@ Completed:
 66. `T-075`: Advanced table extraction implemented with multi-page table stitching and merged-cell expansion (`svandoc_backend.table_extraction`), integrated into normalization to prefer table-derived line items when available, and benchmark regression gate coverage added for complex table scenarios.
 67. `T-110`: RunPod-first inference env/secrets contract aligned across `.env.example`, `.env.staging.example`, and setup/migration docs, including explicit `VLLM_API_KEY` handling and development-only local vLLM fallback guidance.
 68. `T-111`: Inference smoke validation hardened for RunPod dual endpoints with deterministic evidence output (`result_code`, ordered `failure_codes`) and explicit primary/fallback failure codes for connectivity/model/readiness failures.
+69. `T-112`: Inference client fail-closed policy hardened for RunPod serverless behavior, including hosted timeout/retry/backoff defaults, endpoint preflight guardrails (unconfigured/localhost-in-managed rejection), retryability propagation into queue dead-letter paths, and regression coverage for retryable/non-retryable outage handling.
 22. `T-098` to `T-099`: Supabase-first DB runtime/env/docs updates (URL normalization, SSL defaults, pool settings, setup docs).
 23. `T-100`: Alembic migration validation completed against Supabase-managed Postgres.
 24. `T-101`: readiness dependency checks for DB + Redis with failure envelopes and tests.
@@ -136,14 +138,20 @@ Task status source of truth: `tasks.md`.
 ## 6) Next Tasks To Execute
 
 Next in strict order:
-1. `T-112` Harden inference client policy for RunPod serverless behavior (fail-closed). `NEXT`
-2. `T-113` Update cloud deployment/inference runbook for RunPod operations.
-3. `T-114` Add deploy gate for RunPod inference readiness.
-4. `T-115` Execute managed-environment smoke with RunPod-backed inference.
-5. `T-076` Add handwriting-focused extraction route and quality benchmark.
-6. `T-077` Expand multilingual support with automatic language detection.
-7. `T-078` Implement immutable audit trail and exportable audit reports.
-8. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+1. `T-113` Update cloud deployment/inference runbook for RunPod operations. `NEXT`
+2. `T-114` Add deploy gate for RunPod inference readiness.
+3. `T-115` Execute managed-environment smoke with RunPod-backed inference.
+4. `T-076` Add handwriting-focused extraction route and quality benchmark.
+5. `T-077` Expand multilingual support with automatic language detection.
+6. `T-078` Implement immutable audit trail and exportable audit reports.
+7. Deployment tasks `T-102` to `T-105` execute after `T-115` is complete.
+
+Completed snapshot for `T-112` (2026-02-25):
+1. Tuned `svandoc_backend.vllm_client` for hosted RunPod latency/failure patterns with higher default timeout/retries and capped exponential backoff (`VLLM_TIMEOUT_SECONDS`, `VLLM_MAX_RETRIES`, `VLLM_RETRY_BACKOFF_SECONDS`, `VLLM_RETRY_MAX_BACKOFF_SECONDS`).
+2. Added inference endpoint preflight guardrails for fail-closed behavior: placeholder/unconfigured URLs fail immediately, and localhost inference URLs are blocked when `APP_ENV` is `staging` or `production`.
+3. Extended `VLLMClientError` with retryability metadata and wired queue classification to exception-chain semantics so retryable upstream failures reliably follow retry/dead-letter behavior.
+4. Added regression tests for endpoint guardrails, backoff cap behavior, and retryable/non-retryable `VLLMClientError` handling in worker processing paths.
+5. Updated env/docs contracts (`.env.example`, `.env.staging.example`, `backend/README.md`) and stabilized queueing test temp DB root for WSL mounted filesystems (`/tmp/svandoc-tests`).
 
 Completed snapshot for `T-111` (2026-02-22):
 1. Hardened `svandoc_backend.inference_smoke` to return deterministic top-level `result_code`/`failure_codes` and per-target `status`/`failure_codes`.
@@ -302,9 +310,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 68. `T-073` extraction-template checks passed on `2026-02-16`: `backend/tests/test_extraction_templates.py`, `backend/tests/test_core_schema.py`, and `backend/tests/test_extraction_endpoint.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0012` head; frontend `typecheck`, `lint`, and `test` passed with new review-page template create/apply UI.
 69. `T-074` template-learning checks passed on `2026-02-16`: `backend/tests/test_template_learning.py`, `backend/tests/test_extraction_templates.py`, and `backend/tests/test_core_schema.py` passed (`16` tests via `unittest`); migration validation reached `20260216_0013` head and confirmed learning-rule table/indexes; frontend smoke tests remained green.
 70. `T-075` advanced-table checks passed on `2026-02-22`: `backend/tests/test_table_extraction.py`, `backend/tests/test_normalization.py`, `backend/tests/test_table_quality_benchmark.py`, `backend/tests/test_quality_eval.py`, `backend/tests/test_quality_gate.py`, and `backend/tests/test_queueing.py` passed (`26` tests via `unittest`); raw `unittest discover` in this Python `3.12` sandbox can still hang on `TestClient` paths, so backend test script now defaults to module-level timeout execution.
-71. RunPod migration validation target (planned): `T-112` must verify fail-closed inference outage handling (retry/dead-letter, no auto local fallback) under hosted RunPod endpoint behavior.
-72. `T-110` contract alignment checks passed on `2026-02-22`: `.env.example`, `.env.staging.example`, `docs/local-setup.md`, `docs/local-to-cloud-migration-runbook.md`, `docs/inference-model-setup.md`, and `backend/README.md` were updated for RunPod-first endpoint/auth guidance; targeted backend regression tests passed (`backend/tests/test_vllm_client.py`, `backend/tests/test_inference_smoke.py`, `backend/tests/test_queueing.py`; `21` tests via `unittest`).
-73. `T-111` smoke-hardening checks passed on `2026-02-22`: `backend/tests/test_inference_smoke.py`, `backend/tests/test_vllm_client.py`, and `backend/tests/test_queueing.py` passed (`23` tests via `unittest`); CLI smoke execution with placeholder RunPod URLs produced deterministic evidence (`result_code=PRIMARY_ENDPOINT_UNCONFIGURED`) at `backend/.local-sandbox/inference-smoke-t111.json`.
+71. `T-110` contract alignment checks passed on `2026-02-22`: `.env.example`, `.env.staging.example`, `docs/local-setup.md`, `docs/local-to-cloud-migration-runbook.md`, `docs/inference-model-setup.md`, and `backend/README.md` were updated for RunPod-first endpoint/auth guidance; targeted backend regression tests passed (`backend/tests/test_vllm_client.py`, `backend/tests/test_inference_smoke.py`, `backend/tests/test_queueing.py`; `21` tests via `unittest`).
+72. `T-111` smoke-hardening checks passed on `2026-02-22`: `backend/tests/test_inference_smoke.py`, `backend/tests/test_vllm_client.py`, and `backend/tests/test_queueing.py` passed (`23` tests via `unittest`); CLI smoke execution with placeholder RunPod URLs produced deterministic evidence (`result_code=PRIMARY_ENDPOINT_UNCONFIGURED`) at `backend/.local-sandbox/inference-smoke-t111.json`.
+73. `T-112` fail-closed policy checks passed on `2026-02-25`: `backend/tests/test_vllm_client.py` (`10` tests), `backend/tests/test_queueing.py` (`15` tests), and `backend/tests/test_inference_smoke.py` (`4` tests) passed via `.venv/bin/python -m unittest`; queueing suite executed with `PROCESSING_RETRY_BACKOFF_SECONDS=1` for faster deterministic retry scheduling in test runtime.
 74. Housekeeping fixes on `2026-02-25`: restored `datasets/benchmark/v1/table_ground_truth.json` and `datasets/benchmark/v1/table_ci_predictions.json` so `backend/tests/test_table_quality_benchmark.py` fixtures are present; resolved mass git-status file-mode noise in WSL environments via repository `core.filemode=false` guidance.
 
 ## 11) Update Protocol For Future Sessions

@@ -5,20 +5,38 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
+from urllib.parse import urlparse
 from typing import Any, Callable
 
 import httpx
 
-DEFAULT_VLLM_BASE_URL = "http://localhost:11434/v1"
-DEFAULT_VLLM_FALLBACK_BASE_URL = "http://localhost:11435/v1"
-DEFAULT_TIMEOUT_SECONDS = 20.0
-DEFAULT_MAX_RETRIES = 2
-DEFAULT_RETRY_BACKOFF_SECONDS = 0.5
+DEFAULT_VLLM_BASE_URL = "https://api.runpod.ai/v2/<primary-endpoint-id>/openai/v1"
+DEFAULT_VLLM_FALLBACK_BASE_URL = "https://api.runpod.ai/v2/<fallback-endpoint-id>/openai/v1"
+DEFAULT_TIMEOUT_SECONDS = 45.0
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_BACKOFF_SECONDS = 1.0
+DEFAULT_RETRY_MAX_BACKOFF_SECONDS = 20.0
 DEFAULT_FALLBACK_MODEL = "datalab-to/chandra"
+DEFAULT_APP_ENV = "local"
+RETRYABLE_HTTP_STATUS_CODES = frozenset({408, 409, 425, 429})
+UNCONFIGURED_ENDPOINT_ERROR = "ENDPOINT_UNCONFIGURED"
+LOCAL_ENDPOINT_DISALLOWED_ERROR = "LOCAL_ENDPOINT_DISALLOWED"
+REQUEST_FAILED_ERROR = "REQUEST_FAILED"
 
 
 class VLLMClientError(RuntimeError):
     """Raised for vLLM request failures."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        error_code: str = REQUEST_FAILED_ERROR,
+    ) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+        self.error_code = error_code
 
 
 @dataclass(frozen=True)
@@ -52,7 +70,47 @@ def _read_int_env(name: str, default: int) -> int:
 
 
 def _is_retryable_http_error(status_code: int) -> bool:
-    return status_code == 429 or status_code >= 500
+    return status_code in RETRYABLE_HTTP_STATUS_CODES or status_code >= 500
+
+
+def _is_endpoint_configured(base_url: str) -> bool:
+    normalized = (base_url or "").strip()
+    if not normalized:
+        return False
+    lowered = normalized.lower()
+    if "<" in normalized or ">" in normalized:
+        return False
+    if "replace-with-" in lowered or "replace-me" in lowered:
+        return False
+    return True
+
+
+def _is_localhost_endpoint(base_url: str) -> bool:
+    try:
+        parsed = urlparse(base_url)
+    except ValueError:
+        return False
+    hostname = (parsed.hostname or "").strip().lower()
+    return hostname in {"localhost", "127.0.0.1", "::1"}
+
+
+def _is_managed_environment() -> bool:
+    app_env = os.getenv("APP_ENV", DEFAULT_APP_ENV).strip().lower() or DEFAULT_APP_ENV
+    return app_env in {"staging", "production"}
+
+
+def _endpoint_preflight_error(base_url: str) -> tuple[str, str] | None:
+    if not _is_endpoint_configured(base_url):
+        return (
+            UNCONFIGURED_ENDPOINT_ERROR,
+            "Inference endpoint is not configured. Set RunPod endpoint URLs in environment configuration.",
+        )
+    if _is_managed_environment() and _is_localhost_endpoint(base_url):
+        return (
+            LOCAL_ENDPOINT_DISALLOWED_ERROR,
+            "Localhost inference endpoints are blocked in managed environments (fail-closed policy).",
+        )
+    return None
 
 
 def _model_basename(model_name: str) -> str:
@@ -89,6 +147,7 @@ class VLLMClient:
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff_seconds: float = DEFAULT_RETRY_BACKOFF_SECONDS,
+        retry_max_backoff_seconds: float = DEFAULT_RETRY_MAX_BACKOFF_SECONDS,
         metrics_hook: MetricsHook | None = None,
         http_client: httpx.Client | None = None,
         sleep_fn: Callable[[float], None] | None = None,
@@ -98,6 +157,7 @@ class VLLMClient:
         self._timeout_seconds = timeout_seconds
         self._max_retries = max_retries
         self._retry_backoff_seconds = retry_backoff_seconds
+        self._retry_max_backoff_seconds = retry_max_backoff_seconds
         self._metrics_hook = metrics_hook
         self._http_client = http_client or httpx.Client(timeout=self._timeout_seconds)
         self._sleep_fn = sleep_fn or time.sleep
@@ -119,6 +179,22 @@ class VLLMClient:
         }
         if extra_payload:
             request_payload.update(extra_payload)
+
+        endpoint_error = _endpoint_preflight_error(self._base_url)
+        if endpoint_error is not None:
+            error_code, message = endpoint_error
+            self._emit_metric(
+                "vllm.request",
+                {
+                    "success": False,
+                    "attempts": 0,
+                    "latency_ms": 0,
+                    "model": model,
+                    "error_type": "EndpointConfigurationError",
+                    "error_code": error_code,
+                },
+            )
+            raise VLLMClientError(message, retryable=False, error_code=error_code)
 
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if self._api_key:
@@ -168,13 +244,17 @@ class VLLMClient:
                 should_retry = _should_retry_exception(exc)
                 if not should_retry or attempt > self._max_retries:
                     break
-                sleep_seconds = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                sleep_seconds = min(
+                    self._retry_backoff_seconds * (2 ** (attempt - 1)),
+                    self._retry_max_backoff_seconds,
+                )
                 self._sleep_fn(sleep_seconds)
             except Exception as exc:
                 last_error = exc
                 break
 
         elapsed_ms = int((time.perf_counter() - start) * 1000)
+        is_retryable_failure = last_error is not None and _should_retry_exception(last_error)
         self._emit_metric(
             "vllm.request",
             {
@@ -183,9 +263,15 @@ class VLLMClient:
                 "latency_ms": elapsed_ms,
                 "model": model,
                 "error_type": last_error.__class__.__name__ if last_error else "UnknownError",
+                "retryable": is_retryable_failure,
             },
         )
-        raise VLLMClientError(f"vLLM request failed after {attempt} attempt(s)") from last_error
+        error_detail = f"{last_error.__class__.__name__}: {last_error}" if last_error else "UnknownError"
+        raise VLLMClientError(
+            f"vLLM request failed after {attempt} attempt(s): {error_detail}",
+            retryable=is_retryable_failure,
+            error_code=REQUEST_FAILED_ERROR,
+        ) from last_error
 
     def _emit_metric(self, event: str, payload: dict[str, Any]) -> None:
         if self._metrics_hook is None:
@@ -226,6 +312,10 @@ def build_vllm_client_from_env(
     timeout_seconds = _read_float_env("VLLM_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
     max_retries = _read_int_env("VLLM_MAX_RETRIES", DEFAULT_MAX_RETRIES)
     retry_backoff_seconds = _read_float_env("VLLM_RETRY_BACKOFF_SECONDS", DEFAULT_RETRY_BACKOFF_SECONDS)
+    retry_max_backoff_seconds = _read_float_env(
+        "VLLM_RETRY_MAX_BACKOFF_SECONDS",
+        DEFAULT_RETRY_MAX_BACKOFF_SECONDS,
+    )
 
     return VLLMClient(
         base_url=base_url,
@@ -233,6 +323,7 @@ def build_vllm_client_from_env(
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
         retry_backoff_seconds=retry_backoff_seconds,
+        retry_max_backoff_seconds=retry_max_backoff_seconds,
         metrics_hook=metrics_hook,
         http_client=http_client,
         sleep_fn=sleep_fn,
@@ -250,6 +341,10 @@ def build_vllm_client_for_model(
     timeout_seconds = _read_float_env("VLLM_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
     max_retries = _read_int_env("VLLM_MAX_RETRIES", DEFAULT_MAX_RETRIES)
     retry_backoff_seconds = _read_float_env("VLLM_RETRY_BACKOFF_SECONDS", DEFAULT_RETRY_BACKOFF_SECONDS)
+    retry_max_backoff_seconds = _read_float_env(
+        "VLLM_RETRY_MAX_BACKOFF_SECONDS",
+        DEFAULT_RETRY_MAX_BACKOFF_SECONDS,
+    )
 
     return VLLMClient(
         base_url=base_url_for_model(model_name),
@@ -257,6 +352,7 @@ def build_vllm_client_for_model(
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
         retry_backoff_seconds=retry_backoff_seconds,
+        retry_max_backoff_seconds=retry_max_backoff_seconds,
         metrics_hook=metrics_hook,
         http_client=http_client,
         sleep_fn=sleep_fn,

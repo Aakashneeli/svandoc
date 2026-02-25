@@ -68,3 +68,7 @@ Tooling uses Python scripts in `backend/tools/` and FastAPI-related dependencies
 6. Local vLLM endpoint overrides are development-only fallback and not production default.
 7. Validate dual-endpoint inference setup:
    - `powershell -NoProfile -ExecutionPolicy Bypass -File backend/scripts/inference-smoke.ps1`
+8. Hosted inference retry policy envs:
+   - `VLLM_TIMEOUT_SECONDS`, `VLLM_MAX_RETRIES`, `VLLM_RETRY_BACKOFF_SECONDS`, `VLLM_RETRY_MAX_BACKOFF_SECONDS`
+9. Queue fail-closed retry/dead-letter policy envs:
+   - `PROCESSING_MAX_RETRIES`, `PROCESSING_RETRY_BACKOFF_SECONDS`
